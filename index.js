@@ -5,12 +5,14 @@ const cors = require("cors");
 var serviceAccount = require("./serviceAccountKey.json");
 const bodyParser = require("body-parser");
 const usersRoute = require("./rotues/users");
+const communityRoute = require("./rotues/community");
+const requestRoute = require("./rotues/request");
 
 // admin.initializeApp({
 //   credential: admin.credential.cert(serviceAccount),
 // });
 
-// const db = admin.firestore();
+// const db = admin.firestore()
 
 const app = express();
 
@@ -19,7 +21,9 @@ app.use(cors({ origin: true }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use("/api", usersRoute.routes);
+app.use("/users", usersRoute.routes);
+app.use("/community", communityRoute.routes);
+app.use("/request", requestRoute.routes);
 
 app.listen(5000, () => console.log("App is listening on url http://localhost"));
 
