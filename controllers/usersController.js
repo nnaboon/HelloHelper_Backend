@@ -1,5 +1,5 @@
 const db = require("../db");
-const User = require("../models/users");
+const User = require("../models/user");
 
 // add new user
 const addUsers = async (req, res, next) => {
@@ -13,28 +13,28 @@ const addUsers = async (req, res, next) => {
       imageUrl: req.body.imageUrl,
       address: req.body.address,
       phoneNumber: req.body.phoneNumber,
-      recommend: req.body.recommend,
-      rank: req.body.rank,
-      rating: req.body.rating,
-      communityId: req.body.communityId,
+      recommend: 0,
+      rank: 0,
+      rating: 0,
+      communityId: undefined,
       category: req.body.category,
-      requestSum: req.body.requestSum,
-      provideSum: req.body.provideSum,
-      followerUserId: req.body.followerUserId,
-      followingUserId: req.body.followingUserId,
-      provideId: req.body.provideId,
-      requestId: req.body.requestId,
+      requestSum: 0,
+      provideSum: 0,
+      followerUserId: 0,
+      followingUserId: 0,
+      provideId: 0,
+      requestId: 0,
       createAt: req.body.createdAt,
       createdBy: req.body.createdBy,
       modifiedAt: req.body.modifiedAt,
       modifiedBy: req.body.modifiedBy,
       deletedAt: req.body.deletedAt,
       deletedBy: req.body.deletedBy,
-      dataStatus: req.body.dataStatus,
+      dataStatus: 0,
     });
     res.status(200).send("User created");
   } catch (error) {
-    res.status(500).send(error);
+    res.status(400).send(error.message);
   }
 };
 
@@ -42,18 +42,27 @@ const addUsers = async (req, res, next) => {
 const updateUserData = async (req, res, next) => {
   try {
     const document = db.collection("users").doc(req.params.id);
-    await document.update({
-      [req.body.field]: req.body.updateData,
-    });
-
-    return res.status(200).send("User update");
+    await document.update(req.body);
+    res.status(200).send("User update");
   } catch (error) {
-    return res.status(500).send(error);
+    res.status(400).send(error.message);
+  }
+};
+
+const deleteUser = async (req, res, next) => {
+  try {
+    const document = db.collection("users").doc(req.params.id);
+    await document.update({
+      dataStatus: 1,
+    });
+    res.status(200).send("User has deleted");
+  } catch (error) {
+    res.status(400).send(error.message);
   }
 };
 
 //get all user data
-const getAllUser = async (req, res, next) => {
+const getUsers = async (req, res, next) => {
   try {
     const data = await db.collection("users").get();
     const entities = [];
@@ -101,8 +110,27 @@ const getAllUser = async (req, res, next) => {
   }
 };
 
+//get selected user data
+const getUser = async (req, res, next) => {
+  try {
+    const data = await db.collection("users").doc(req.params.id).get();
+    const id = data.id;
+    const entities = [];
+
+    if (data.empty) {
+      res.status(404).send("No user found");
+    } else {
+      entities.push({ userId: id, ...data.data() });
+    }
+    res.status(200).send(entities);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
 module.exports = {
   addUsers,
-  getAllUser,
+  getUsers,
+  getUser,
   updateUserData,
+  deleteUser,
 };
