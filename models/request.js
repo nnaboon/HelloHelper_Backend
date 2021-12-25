@@ -9,6 +9,7 @@ class Request {
     serviceCharge,
     number,
     payment,
+    userId,
     communityId,
     category,
     hashtag,
@@ -31,6 +32,7 @@ class Request {
     this.serviceCharge = serviceCharge;
     this.number = number;
     this.payment = payment;
+    this.userId = userId;
     this.communityId = communityId;
     this.category = category;
     this.hashtag = hashtag;
