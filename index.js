@@ -7,6 +7,8 @@ const bodyParser = require("body-parser");
 const usersRoute = require("./rotues/users");
 const communityRoute = require("./rotues/community");
 const requestRoute = require("./rotues/request");
+const provideRoute = require("./rotues/provide");
+const orderRoute = require("./rotues/order");
 
 // admin.initializeApp({
 //   credential: admin.credential.cert(serviceAccount),
@@ -16,6 +18,8 @@ const requestRoute = require("./rotues/request");
 
 const app = express();
 
+const PORT = 5000;
+
 app.use(cors({ origin: true }));
 
 app.use(bodyParser.json());
@@ -24,8 +28,12 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use("/users", usersRoute.routes);
 app.use("/community", communityRoute.routes);
 app.use("/request", requestRoute.routes);
+app.use("/provide", provideRoute.routes);
+app.use("/order", orderRoute.routes);
 
-app.listen(5000, () => console.log("App is listening on url http://localhost"));
+app.listen(PORT, () =>
+  console.log("App is listening on url http://localhost:", PORT)
+);
 
 // //Post
 
