@@ -1,5 +1,6 @@
 const db = require("../db");
 const User = require("../models/user");
+const moment = require("moment");
 
 // add new user
 const addUsers = async (req, res, next) => {
@@ -24,12 +25,8 @@ const addUsers = async (req, res, next) => {
       followingUserId: 0,
       provideId: 0,
       requestId: 0,
-      createAt: req.body.createdAt,
-      createdBy: req.body.createdBy,
-      modifiedAt: req.body.modifiedAt,
-      modifiedBy: req.body.modifiedBy,
-      deletedAt: req.body.deletedAt,
-      deletedBy: req.body.deletedBy,
+      createAt: moment().toISOString(),
+      createdBy: req.body.userId,
       dataStatus: 0,
     });
     res.status(200).send("User created");
@@ -42,7 +39,11 @@ const addUsers = async (req, res, next) => {
 const updateUserData = async (req, res, next) => {
   try {
     const document = db.collection("users").doc(req.params.id);
-    await document.update(req.body);
+    await document.update({
+      ...req.body,
+      modifiedAt: moment().toISOString(),
+      modifiedBy: req.body.userId,
+    });
     res.status(200).send("User update");
   } catch (error) {
     res.status(400).send(error.message);
@@ -53,6 +54,8 @@ const deleteUser = async (req, res, next) => {
   try {
     const document = db.collection("users").doc(req.params.id);
     await document.update({
+      deletedAt: moment().toISOString(),
+      deletedBy: req.body.userId,
       dataStatus: 1,
     });
     res.status(200).send("User has deleted");

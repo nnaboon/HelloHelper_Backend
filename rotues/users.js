@@ -13,7 +13,7 @@ router.get("/", getUsers);
 router.get("/:id", getUser);
 router.post("/", addUsers);
 router.put("/:id", updateUserData);
-router.post("/delete/:id", deleteUser);
+router.put("/delete/:id", deleteUser);
 
 module.exports = {
   routes: router,
