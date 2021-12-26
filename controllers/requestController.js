@@ -1,7 +1,5 @@
 const db = require("../db");
-const admin = require("firebase-admin");
 const moment = require("moment");
-
 const {
   Request,
   ProvidedUserId,
@@ -20,69 +18,71 @@ const getRequests = async (req, res, next) => {
       await Promise.all(
         data.docs.map(async (doc) => {
           const id = doc.id;
-          const request = new Request(
-            id,
-            doc.data().title,
-            doc.data().location,
-            doc.data().imageUrl,
-            doc.data().description,
-            doc.data().number,
-            doc.data().price,
-            doc.data().serviceCharge,
-            doc.data().userId,
-            doc.data().communityId
-          );
-
-          const requesterUserEntities = [];
-          const providedUserEntities = [];
-
-          const requesterUserId = await db
-            .collection("requests")
-            .doc(id)
-            .collection("requesterUserId")
-            .get();
-
-          requesterUserId.forEach((doc) => {
-            const requesterUser = new RequesterUserId(
+          if (!doc.data.communityId) {
+            const request = new Request(
+              id,
+              doc.data().title,
+              doc.data().location,
+              doc.data().imageUrl,
+              doc.data().description,
+              doc.data().number,
+              doc.data().price,
+              doc.data().serviceCharge,
               doc.data().userId,
-              doc.data().createAt,
-              doc.data().createdBy,
-              doc.data().modifiedAt,
-              doc.data().modifiedBy,
-              doc.data().deletedAt,
-              doc.data().deletedBy,
-              doc.data().dataStatus
+              doc.data().communityId
             );
-            requesterUserEntities.push(requesterUser);
-          });
 
-          Object.assign(request, {
-            requesterUserId: requesterUserEntities,
-          });
+            const requesterUserEntities = [];
+            const providedUserEntities = [];
 
-          const providedUserId = await db
-            .collection("requests")
-            .doc(id)
-            .collection("providedUserId")
-            .get();
+            const requesterUserId = await db
+              .collection("requests")
+              .doc(id)
+              .collection("requesterUserId")
+              .get();
 
-          providedUserId.forEach((doc) => {
-            const providedUser = new ProvidedUserId(
-              doc.data().userId,
-              doc.data().status,
-              doc.data().createAt,
-              doc.data().createdBy,
-              doc.data().modifiedAt,
-              doc.data().modifiedBy,
-              doc.data().deletedAt,
-              doc.data().deletedBy,
-              doc.data().dataStatus
-            );
-            providedUserEntities.push(providedUser);
-          });
-          Object.assign(request, {
-            providedUserId: providedUserEntities,
-          });
+            requesterUserId.forEach((doc) => {
+              const requesterUser = new RequesterUserId(
+                doc.data().userId,
+                doc.data().createAt,
+                doc.data().createdBy,
+                doc.data().modifiedAt,
+                doc.data().modifiedBy,
+                doc.data().deletedAt,
+                doc.data().deletedBy,
+                doc.data().dataStatus
+              );
+              requesterUserEntities.push(requesterUser);
+            });
+
+            Object.assign(request, {
+              requesterUserId: requesterUserEntities,
+            });
+
+            const providedUserId = await db
+              .collection("requests")
+              .doc(id)
+              .collection("providedUserId")
+              .get();
+
+            providedUserId.forEach((doc) => {
+              const providedUser = new ProvidedUserId(
+                doc.data().userId,
+                doc.data().status,
+                doc.data().createAt,
+                doc.data().createdBy,
+                doc.data().modifiedAt,
+                doc.data().modifiedBy,
+                doc.data().deletedAt,
+                doc.data().deletedBy,
+                doc.data().dataStatus
+              );
+              providedUserEntities.push(providedUser);
+            });
+            Object.assign(request, {
+              providedUserId: providedUserEntities,
+            });
+          }
           entities.push(request);
         })
       );
@@ -115,7 +115,6 @@ const getRequest = async (req, res, next) => {
       res.status(404).send("No user found");
     } else {
       entities.push({ requestId: id, ...data.data() });
-
       requesterUserId.forEach((doc) => {
         const requesterUser = new RequesterUserId(
           doc.data().userId,
