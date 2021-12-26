@@ -9,7 +9,7 @@ const communityRoute = require("./rotues/community");
 const requestRoute = require("./rotues/request");
 const provideRoute = require("./rotues/provide");
 const orderRoute = require("./rotues/order");
-
+const chatRoute = require("./rotues/chat");
 // admin.initializeApp({
 //   credential: admin.credential.cert(serviceAccount),
 // });
@@ -30,6 +30,7 @@ app.use("/community", communityRoute.routes);
 app.use("/request", requestRoute.routes);
 app.use("/provide", provideRoute.routes);
 app.use("/order", orderRoute.routes);
+app.use("/chat", chatRoute.routes);
 
 app.listen(PORT, () =>
   console.log("App is listening on url http://localhost:", PORT)
