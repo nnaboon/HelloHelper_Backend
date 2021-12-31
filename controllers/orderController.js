@@ -107,10 +107,94 @@ const deleteOrder = async (req, res, next) => {
   }
 };
 
+const updateProvideSum = async (req, res, next) => {
+  try {
+    const provideSumUserPrev = await db
+      .collection("users")
+      .doc(req.body.userId)
+      .get();
+
+    const provideSumOrderPrev = await db
+      .collection("provides")
+      .doc(req.body.provideId)
+      .get();
+
+    await db
+      .collection("provides")
+      .doc(req.body.provideId)
+      .update({
+        provideSum: provideSumOrderPrev.data().provideSum + 1,
+      })
+      .then(async (res) => {
+        const data = await db
+          .collection("provides")
+          .doc(req.body.provideId)
+          .get();
+        await db
+          .collection("provides")
+          .doc(req.body.provideId)
+          .update({
+            rating:
+              data.data().rating +
+              (req.body.rating - data.data().rating) / data.data().provideSum,
+          });
+      });
+
+    await db
+      .collection("users")
+      .doc(req.body.userId)
+      .update({
+        provideSum: provideSumUserPrev.data().provideSum + 1,
+      })
+      .then(async (res) => {
+        const data = await db.collection("users").doc(req.body.userId).get();
+
+        await db
+          .collection("users")
+          .doc(req.body.userId)
+          .update({
+            rating:
+              data.data().rating +
+              (req.body.rating - data.data().rating) / data.data().provideSum,
+          });
+
+        if (data.data().rank >= 3 && data.data().rating >= 4) {
+          await db.collection("users").doc(req.body.userId).update({
+            recommend: 1,
+          });
+        }
+      });
+    res.status(200).send("provideSum updated successfully");
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+const updateRequestSum = async (req, res, next) => {
+  try {
+    const requestSumPrev = await db
+      .collection("users")
+      .doc(req.body.userId)
+      .get();
+
+    await db
+      .collection("users")
+      .doc(req.body.userId)
+      .update({
+        requestSum: requestSumPrev.data().requestSum + 1,
+      });
+    res.status(200).send("requestSum updated successfully");
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
 module.exports = {
   getOrders,
   getOrder,
   addOrder,
   updateOrder,
   deleteOrder,
+  updateRequestSum,
+  updateProvideSum,
 };
