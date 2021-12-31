@@ -5,6 +5,8 @@ class Provide {
     location,
     imageUrl,
     description,
+    rating,
+    provideSum,
     serviceCharge,
     payment,
     userId,
@@ -12,6 +14,7 @@ class Provide {
     category,
     hashtag,
     requesterUserId,
+    visibility,
     createdAt,
     createdBy,
     modifiedAt,
@@ -25,6 +28,8 @@ class Provide {
     this.location = location;
     this.imageUrl = imageUrl;
     this.description = description;
+    this.provideSum = provideSum;
+    this.rating = rating;
     this.serviceCharge = serviceCharge;
     this.payment = payment;
     this.userId = userId;
@@ -32,6 +37,7 @@ class Provide {
     this.category = category;
     this.hashtag = hashtag;
     this.requesterUserId = requesterUserId;
+    this.visibility = visibility;
     this.createAt = createdAt;
     this.createdBy = createdBy;
     this.modifiedAt = modifiedAt;
