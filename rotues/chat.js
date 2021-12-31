@@ -1,17 +1,23 @@
 const express = require("express");
-const { addChatRoom, addMessage } = require("../controllers/chatController");
+const {
+  getChatRoom,
+  addChatRoom,
+  addMessage,
+  updateLastMessage,
+  deletedChatRoom,
+  updateReadStatus,
+} = require("../controllers/chatController");
 
 const router = express.Router();
 
-// router.get("/", getUsers);
-// router.get("/:id", getUser);
+router.get("/:id", getChatRoom);
 
 router.post("/", addChatRoom);
+router.post("/message/:id", addMessage);
 
-router.put("/message/:id", addMessage);
-
-// router.put("/:id", updateUserData);
-// router.put("/delete/:id", deleteUser);
+router.put("/last/:id", updateLastMessage);
+router.put("/read/:id", updateReadStatus);
+router.put("/delete/:id", deletedChatRoom);
 
 module.exports = {
   routes: router,
