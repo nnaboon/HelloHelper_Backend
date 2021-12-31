@@ -1,7 +1,13 @@
 const db = require("../db");
+const moment = require("moment");
 const { Provide, RequesterUserId } = require("../models/provide");
 const { Request, ProvidedUserId } = require("../models/request");
 const { Community, Member, JoinedRequest } = require("../models/community");
+const fs = require("fs");
+const admin = require("firebase-admin");
+
+const storage = admin.storage();
+const bucket = storage.bucket();
 
 const getCommunities = async (req, res, next) => {
   try {
@@ -323,6 +329,15 @@ const getCommunityProvide = async (req, res, next) => {
 
 const addCommunity = async (req, res, next) => {
   try {
+    const isExistData = await db
+      .collection("communities")
+      .where("communityName", "==", req.body.communityName)
+      .get();
+
+    if (isExistData.size > 0) {
+      return res.status(400).send("This community name is already taken.");
+    }
+
     const data = await db.collection("communities").add({
       communityCode: req.body.communityCode,
       communityName: req.body.communityName,
@@ -370,9 +385,8 @@ const addCommunity = async (req, res, next) => {
           deletedBy: req.body.deletedBy,
           dataStatus: req.body.dataStatus,
         });
+      res.status(200).send(data.id);
     }
-
-    res.status(200).send("Community Created!");
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -402,18 +416,29 @@ const addMember = async (req, res, next) => {
   }
 };
 
-const updateMemberStatus = async (req, res, next) => {
+const updateMemberRole = async (req, res, next) => {
   try {
-    await db
-      .collection("communities")
+    const data = db.collection("communities");
+    const admin = await data
       .doc(req.params.communityId)
       .collection("member")
-      .doc(req.params.memberId)
-      .update({
-        role: req.body.role,
-        modifiedAt: moment().toISOString(),
-        modifiedBy: req.body.userId,
-      });
+      .where("role", "==", 1)
+      .get();
+
+    if (admin.size >= 3 && req.body.role == 1) {
+      res.status(404).send("Sorry maximum admin role is 3");
+    } else {
+      await db
+        .collection("communities")
+        .doc(req.params.communityId)
+        .collection("member")
+        .doc(req.params.memberId)
+        .update({
+          role: req.body.role,
+          modifiedAt: moment().toISOString(),
+          modifiedBy: req.body.userId,
+        });
+    }
 
     res.status(200).send("updated member successfully");
   } catch (error) {
@@ -429,9 +454,7 @@ const bannedMember = async (req, res, next) => {
       .collection("member")
       .doc(req.params.memberId)
       .update({
-        modifiedAt: moment().toISOString(),
-        modifiedBy: req.body.userId,
-        dataStatus: 1,
+        status: 1,
       });
 
     res.status(200).send("banned member successfully");
@@ -514,6 +537,34 @@ const deleteCommunity = async (req, res, next) => {
   }
 };
 
+const uploadImage = async (req, res, next) => {
+  const folder = "communities";
+  const fileName = `${folder}/${req.body.id}}`;
+  const fileUpload = bucket.file(fileName);
+  const blobStream = fileUpload.createWriteStream({
+    metadata: {
+      contentType: req.file.mimetype,
+    },
+  });
+
+  blobStream.on("error", (err) => {
+    res.status(405).json(err);
+  });
+
+  blobStream.on("finish", () => {
+    res.status(200).send("Upload complete!");
+  });
+
+  blobStream.end(req.file.buffer);
+};
+
+const getImage = async (req, res, next) => {
+  const file = bucket.file(`communities/${req.params.id}`);
+  file.download().then((downloadResponse) => {
+    res.status(200).send(downloadResponse[0]);
+  });
+};
+
 module.exports = {
   getCommunities,
   getCommunity,
@@ -523,8 +574,10 @@ module.exports = {
   updateJoinedCommunityRequest,
   updateCommunity,
   deleteCommunity,
-  updateMemberStatus,
+  updateMemberRole,
   bannedMember,
   getCommunityRequest,
   getCommunityProvide,
+  uploadImage,
+  getImage,
 };
