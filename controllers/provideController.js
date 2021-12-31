@@ -1,6 +1,10 @@
 const db = require("../db");
 const { Provide, RequesterUserId } = require("../models/provide");
 const moment = require("moment");
+const admin = require("firebase-admin");
+
+const storage = admin.storage();
+const bucket = storage.bucket();
 
 const getProvides = async (req, res, next) => {
   try {
@@ -22,7 +26,8 @@ const getProvides = async (req, res, next) => {
             doc.data().description,
             doc.data().serviceCharge,
             doc.data().userId,
-            doc.data().communityId
+            doc.data().communityId,
+            doc.data().visibility
           );
 
           const requesterUserEntities = [];
@@ -167,6 +172,52 @@ const deletedProvide = async (req, res, next) => {
   }
 };
 
+const uploadImage = async (req, res, next) => {
+  const folder = "provides";
+  const fileName = `${folder}/${Date.now()}`;
+  const fileUpload = bucket.file(fileName);
+  const blobStream = fileUpload.createWriteStream({
+    metadata: {
+      contentType: req.file.mimetype,
+    },
+  });
+
+  blobStream.on("error", (err) => {
+    res.status(405).json(err);
+  });
+
+  blobStream.on("finish", () => {
+    res.status(200).send("Upload complete!");
+  });
+
+  blobStream.end(req.file.buffer);
+};
+
+const getImage = async (req, res, next) => {
+  const file = bucket.file(`provides/${req.params.id}`);
+  file.download().then((downloadResponse) => {
+    res.status(200).send(downloadResponse[0]);
+  });
+};
+
+const updateProvideSum = async (req, res, next) => {
+  try {
+    const provideSumPrev = await db
+      .collection("provides")
+      .doc(req.params.id)
+      .get();
+    await db
+      .collection("provides")
+      .doc(req.params.id)
+      .update({
+        provideSum: provideSumPrev.data().provideSum + 1,
+      });
+    res.status(200).send("updated provide sum successfully");
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
 module.exports = {
   getProvides,
   getProvide,
@@ -174,4 +225,7 @@ module.exports = {
   updatedProvide,
   deletedProvide,
   addRequesterUser,
+  getImage,
+  uploadImage,
+  updateProvideSum,
 };

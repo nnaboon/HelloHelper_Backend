@@ -5,6 +5,11 @@ const {
   ProvidedUserId,
   RequesterUserId,
 } = require("../models/request");
+const admin = require("firebase-admin");
+const nodemailer = require("nodemailer");
+
+const storage = admin.storage();
+const bucket = storage.bucket();
 
 const getRequests = async (req, res, next) => {
   try {
@@ -25,11 +30,14 @@ const getRequests = async (req, res, next) => {
               doc.data().location,
               doc.data().imageUrl,
               doc.data().description,
+              doc.data().provideSum,
+              doc.data().rating,
               doc.data().number,
               doc.data().price,
               doc.data().serviceCharge,
               doc.data().userId,
-              doc.data().communityId
+              doc.data().communityId,
+              doc.data().visibility
             );
 
             const requesterUserEntities = [];
@@ -111,8 +119,8 @@ const getRequest = async (req, res, next) => {
       .collection("providedUserId")
       .get();
 
-    if (data.empty) {
-      res.status(404).send("No user found");
+    if (data.empty || data.data().communityId) {
+      res.status(404).send("Data not found");
     } else {
       entities.push({ requestId: id, ...data.data() });
       requesterUserId.forEach((doc) => {
@@ -167,7 +175,32 @@ const addRequest = async (req, res, next) => {
       modifiedBy: req.body.userId,
       dataStatus: 0,
     });
-    res.status(200).send("request created successfully");
+
+    const user = await db
+      .collection("users")
+      .where("category", "array-contains", ...req.body.category)
+      .get();
+
+    user.forEach((doc) => {
+      let authData = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: {
+          user: "srisawasdina@gmail.com",
+          pass: "na21122542",
+        },
+      });
+      authData
+        .sendMail({
+          from: "Hello Helper<accounts@franciscoinoque.tech>",
+          to: doc.data().email,
+          subject: "มีคนต้องการความช่วยเหลือ",
+          html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />ลองเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
+        })
+        .then(res.status(200).send("request created successfully"))
+        .catch((err) => console.log(err));
+    });
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -257,6 +290,34 @@ const deletedRequest = async (req, res, next) => {
   }
 };
 
+const uploadImage = async (req, res, next) => {
+  const folder = "requests";
+  const fileName = `${folder}/${Date.now()}`;
+  const fileUpload = bucket.file(fileName);
+  const blobStream = fileUpload.createWriteStream({
+    metadata: {
+      contentType: req.file.mimetype,
+    },
+  });
+
+  blobStream.on("error", (err) => {
+    res.status(405).json(err);
+  });
+
+  blobStream.on("finish", () => {
+    res.status(200).send("Upload complete!");
+  });
+
+  blobStream.end(req.file.buffer);
+};
+
+const getImage = async (req, res, next) => {
+  const file = bucket.file(`requests/${req.params.id}`);
+  file.download().then((downloadResponse) => {
+    res.status(200).send(downloadResponse[0]);
+  });
+};
+
 module.exports = {
   getRequests,
   getRequest,
@@ -266,4 +327,6 @@ module.exports = {
   updateProvidedStatus,
   updatedRequest,
   deletedRequest,
+  uploadImage,
+  getImage,
 };

@@ -10,6 +10,7 @@ const requestRoute = require("./rotues/request");
 const provideRoute = require("./rotues/provide");
 const orderRoute = require("./rotues/order");
 const chatRoute = require("./rotues/chat");
+const uploadImageRoute = require("./rotues/uploadImage");
 // admin.initializeApp({
 //   credential: admin.credential.cert(serviceAccount),
 // });
@@ -31,6 +32,7 @@ app.use("/request", requestRoute.routes);
 app.use("/provide", provideRoute.routes);
 app.use("/order", orderRoute.routes);
 app.use("/chat", chatRoute.routes);
+app.use("/image", uploadImageRoute.routes);
 
 app.listen(PORT, () =>
   console.log("App is listening on url http://localhost:", PORT)
