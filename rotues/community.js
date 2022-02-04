@@ -3,8 +3,11 @@ const Multer = require("multer");
 const {
   getCommunities,
   getCommunity,
+  getCommunityMember,
+  getMyCommunity,
+  getCommunityJoinedRequest,
   addCommunity,
-  joinedCommunityRequest,
+  addJoinedCommunityRequest,
   updateMemberRole,
   addMember,
   updateJoinedCommunityRequest,
@@ -29,20 +32,23 @@ const multer = Multer({
 
 router.get("/", getCommunities);
 router.get("/:id", getCommunity);
+router.get("/member/:id", getCommunityMember);
+router.get("/me", getMyCommunity);
 router.get("/request/:id", getCommunityRequest);
 router.get("/provide/:id", getCommunityProvide);
 router.get("image/:id", getImage);
 
 router.post("/", addCommunity);
-router.put("/", updateCommunity);
 router.post("/member/:id", addMember);
-router.post("/join", joinedCommunityRequest);
+router.post("/join", addJoinedCommunityRequest);
 router.post("/upload/:id", multer.single("img"), uploadImage);
+router.get("/join/:id", getCommunityJoinedRequest);
 
-router.put("/delete/:id", deleteCommunity);
+router.put("/:id", updateCommunity);
 router.put("/member/:communityId/:memberId", updateMemberRole);
-router.put("/banned/:communityId/:memberId", bannedMember);
-router.put("/join/:id", updateJoinedCommunityRequest);
+router.put("/ban/:communityId/:memberId", bannedMember);
+router.put("/update/join/:id", updateJoinedCommunityRequest);
+router.put("/delete/:id", deleteCommunity);
 
 module.exports = {
   routes: router,

@@ -35,9 +35,18 @@ class Community {
 }
 
 class Member {
-  constructor(id, status, role, requestSum, provideSum, joinedAt, leavedAt) {
+  constructor(
+    id,
+    userId,
+    status,
+    role,
+    requestSum,
+    provideSum,
+    joinedAt,
+    leavedAt
+  ) {
     this.id = id;
-    this.status = status;
+    (this.userId = userId), (this.status = status);
     this.role = role;
     this.requestSum = requestSum;
     this.provideSum = provideSum;
@@ -49,6 +58,7 @@ class Member {
 class JoinedRequest {
   constructor(
     id,
+    userId,
     status,
     createdAt,
     createdBy,
@@ -59,6 +69,7 @@ class JoinedRequest {
     dataStatus
   ) {
     this.id = id;
+    this.userId = userId;
     this.status = status;
     this.createdAt = createdAt;
     this.createdBy = createdBy;

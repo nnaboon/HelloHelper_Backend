@@ -1,10 +1,13 @@
 const db = require("../db");
 const moment = require("moment");
+const User = require("../models/user");
 const { Provide, RequesterUserId } = require("../models/provide");
 const { Request, ProvidedUserId } = require("../models/request");
 const { Community, Member, JoinedRequest } = require("../models/community");
 const fs = require("fs");
 const admin = require("firebase-admin");
+const nodemailer = require("nodemailer");
+const { send } = require("process");
 
 const storage = admin.storage();
 const bucket = storage.bucket();
@@ -44,11 +47,11 @@ const getCommunities = async (req, res, next) => {
           const members = await db
             .collection("communities")
             .doc(id)
-            .collection("member")
+            .collection("members")
             .get();
 
           if (members.empty) {
-            res.status(404).send("No user found");
+            Object.assign(user, { member: memberEntities });
           } else {
             members.forEach((doc) => {
               const member = new Member(
@@ -72,13 +75,15 @@ const getCommunities = async (req, res, next) => {
             .get();
 
           if (joinedRequest.empty) {
-            res.status(404).send("No user found");
+            Object.assign(user, {
+              joinedRequestUserId: joinedRequestEntities,
+            });
           } else {
             joinedRequest.forEach((doc) => {
               const joinedRequest = new JoinedRequest(
                 doc.id,
+                doc.data().userId,
                 doc.data().status,
-                doc.data().role,
                 doc.data().createdBy,
                 doc.data().createdAt,
                 doc.data().modifiedAt,
@@ -96,8 +101,8 @@ const getCommunities = async (req, res, next) => {
           entities.push(user);
         })
       );
+      res.status(200).send(entities);
     }
-    res.status(200).send(entities);
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -111,7 +116,7 @@ const getCommunity = async (req, res, next) => {
     const members = await db
       .collection("communities")
       .doc(req.params.id)
-      .collection("member")
+      .collection("members")
       .get();
     const joinedRequest = await db
       .collection("communities")
@@ -124,12 +129,12 @@ const getCommunity = async (req, res, next) => {
     const joinedRequestEntities = [];
 
     if (data.empty) {
-      res.status(404).send("No user found");
+      res.status(404).send("No community found");
     } else {
       entities.push({ communityId: id, ...data.data() });
 
       if (members.empty) {
-        res.status(404).send("No user found");
+        Object.assign(...entities, { member: [] });
       } else {
         members.forEach((doc) => {
           const member = new Member(
@@ -147,20 +152,15 @@ const getCommunity = async (req, res, next) => {
       }
 
       if (joinedRequest.empty) {
-        res.status(404).send("No user found");
+        Object.assign(...entities, {
+          joinedRequestUserId: [],
+        });
       } else {
         joinedRequest.forEach((doc) => {
           const joinedRequest = new JoinedRequest(
             doc.id,
-            doc.data().status,
-            doc.data().role,
-            doc.data().createdBy,
-            doc.data().createdAt,
-            doc.data().modifiedAt,
-            doc.data().modifiedBy,
-            doc.data().deletedAt,
-            doc.data().deletedBy,
-            doc.data().dataStatus
+            doc.data().userId,
+            doc.data().status
           );
           joinedRequestEntities.push(joinedRequest);
         });
@@ -168,8 +168,83 @@ const getCommunity = async (req, res, next) => {
           joinedRequestUserId: joinedRequestEntities,
         });
       }
+      res.status(200).send(...entities);
     }
-    res.status(200).send(entities);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+const getMyCommunity = async (req, res, next) => {
+  try {
+    // const data = await db.collection("communities").doc(req.params.id).get();
+
+    const data = await db
+      .collection("community")
+      .where("communityId", "in", req.body.communityId)
+      .get();
+    // const id = data.id;
+
+    // const members = await db
+    //   .collection("communities")
+    //   .doc(req.params.id)
+    //   .collection("members")
+    //   .get();
+    // const joinedRequest = await db
+    //   .collection("communities")
+    //   .doc(req.params.id)
+    //   .collection("joinedRequestUserId")
+    //   .get();
+
+    const entities = [];
+    // const memberEntities = [];
+    // const joinedRequestEntities = [];
+
+    if (data.empty) {
+      res.status(404).send("No community found");
+    } else {
+      data.docs.map((doc) => {
+        console.log(doc.data());
+        // entities.push({ communityId: doc.id, ...data.data() });
+      });
+    }
+
+    //   if (members.empty) {
+    //     Object.assign(...entities, { member: [] });
+    //   } else {
+    //     members.forEach((doc) => {
+    //       const member = new Member(
+    //         doc.id,
+    //         doc.data().status,
+    //         doc.data().role,
+    //         doc.data().requestSum,
+    //         doc.data().provideSum,
+    //         doc.data().joinedAt,
+    //         doc.data().leavedAt
+    //       );
+    //     memberEntities.push(member);
+    //   });
+    //   Object.assign(...entities, { member: memberEntities });
+    // }
+
+    // if (joinedRequest.empty) {
+    //   Object.assign(...entities, {
+    //     joinedRequestUserId: [],
+    //   });
+    // } else {
+    //   joinedRequest.forEach((doc) => {
+    //     const joinedRequest = new JoinedRequest(
+    //       doc.id,
+    //       doc.data().userId,
+    //       doc.data().status
+    //     );
+    //     joinedRequestEntities.push(joinedRequest);
+    //   });
+    //   Object.assign(...entities, {
+    //     joinedRequestUserId: joinedRequestEntities,
+    //   });
+    // }
+    res.status(200).send(...entities);
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -283,6 +358,8 @@ const getCommunityProvide = async (req, res, next) => {
             doc.data().location,
             doc.data().imageUrl,
             doc.data().description,
+            doc.data().provideSum,
+            doc.data().rating,
             doc.data().serviceCharge,
             doc.data().payment,
             doc.data().userId,
@@ -348,8 +425,6 @@ const addCommunity = async (req, res, next) => {
       createdBy: req.body.userId,
       modifiedAt: moment().toISOString(),
       modifiedBy: req.body.userId,
-      deletedAt: req.body.deletedAt,
-      deletedBy: req.body.deletedBy,
       dataStatus: 0,
     });
 
@@ -359,34 +434,22 @@ const addCommunity = async (req, res, next) => {
         .doc(data.id)
         .collection("members")
         .add({
-          userId: req.body.member,
+          userId: req.body.userId,
           role: 1,
+          status: 0,
           createAt: moment().toISOString(),
           createdBy: req.body.userId,
-          modifiedAt: moment().toISOString(),
-          modifiedBy: req.body.userId,
-          deletedAt: req.body.deletedAt,
-          deletedBy: req.body.deletedBy,
-          dataStatus: req.body.dataStatus,
+          dataStatus: 0,
         });
 
       await db
-        .collection("communities")
-        .doc(data.id)
-        .collection("joinedRequestUserId")
-        .add({
-          userId: req.body.joinedRequestUserId,
-          status: "pending",
-          createAt: moment().toISOString(),
-          createdBy: req.body.userId,
-          modifiedAt: moment().toISOString(),
-          modifiedBy: req.body.userId,
-          deletedAt: req.body.deletedAt,
-          deletedBy: req.body.deletedBy,
-          dataStatus: req.body.dataStatus,
+        .collection("users")
+        .doc(req.body.userId)
+        .update({
+          communityId: admin.firestore.FieldValue.arrayUnion(data.id),
         });
-      res.status(200).send(data.id);
     }
+    res.status(200).send(data.id);
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -397,16 +460,13 @@ const addMember = async (req, res, next) => {
     await db
       .collection("communities")
       .doc(req.params.id)
-      .collection("member")
+      .collection("members")
       .add({
-        userId: req.body.userId,
+        userId: req.body.requesterUserId,
         role: 0,
+        status: 0,
         createAt: moment().toISOString(),
-        createdBy: req.body.userId,
-        modifiedAt: moment().toISOString(),
-        modifiedBy: req.body.userId,
-        deletedAt: req.body.deletedAt,
-        deletedBy: req.body.deletedBy,
+        createdBy: req.body.communityAdminUserId,
         dataStatus: 0,
       });
 
@@ -421,25 +481,36 @@ const updateMemberRole = async (req, res, next) => {
     const data = db.collection("communities");
     const admin = await data
       .doc(req.params.communityId)
-      .collection("member")
+      .collection("members")
       .where("role", "==", 1)
+      .get();
+
+    const member = await data
+      .doc(req.params.communityId)
+      .collection("members")
+      .doc(req.params.memberId)
       .get();
 
     if (admin.size >= 3 && req.body.role == 1) {
       res.status(404).send("Sorry maximum admin role is 3");
+    } else if (
+      admin.size == 1 &&
+      req.body.role == 0 &&
+      member.data().role == 1
+    ) {
+      res.status(404).send("Sorry admin role must be at less 1");
     } else {
       await db
         .collection("communities")
         .doc(req.params.communityId)
-        .collection("member")
+        .collection("members")
         .doc(req.params.memberId)
         .update({
           role: req.body.role,
           modifiedAt: moment().toISOString(),
-          modifiedBy: req.body.userId,
+          modifiedBy: req.body.communityAdminUserId,
         });
     }
-
     res.status(200).send("updated member successfully");
   } catch (error) {
     res.status(400).send(error.message);
@@ -451,10 +522,13 @@ const bannedMember = async (req, res, next) => {
     await db
       .collection("communities")
       .doc(req.params.communityId)
-      .collection("member")
+      .collection("members")
       .doc(req.params.memberId)
       .update({
         status: 1,
+        deletedAt: moment().toISOString(),
+        deletedBy: req.body.communityAdminUserId,
+        dataStatus: 1,
       });
 
     res.status(200).send("banned member successfully");
@@ -463,28 +537,57 @@ const bannedMember = async (req, res, next) => {
   }
 };
 
-const joinedCommunityRequest = async (req, res, next) => {
+const addJoinedCommunityRequest = async (req, res, next) => {
   try {
     const data = db.collection("communities");
-    const selectedData = await data
-      .where("communityName", "==", req.body.communityName)
-      .where("communityCode", "==", req.body.communityCode)
+    const user = await db
+      .collection("users")
+      .doc(req.body.communityAdminUserId)
+      .get();
+    // const selectedData = await data
+    //   .where("communityName", "==", req.body.communityName)
+    //   .where("communityCode", "==", req.body.communityCode)
+    //   .get();
+
+    const isExistData = await data
+      .doc(req.body.communityId)
+      .collection("joinedRequestUserId")
+      .where("userId", "==", req.body.userId)
       .get();
 
-    await data
-      .doc(selectedData.docs[0].id)
-      .collection("joinedRequestUserId")
-      .add({
-        userId: req.body.userId,
-        status: "pending",
-        createAt: moment().toISOString(),
-        createdBy: req.body.userId,
-        modifiedAt: moment().toISOString(),
-        modifiedBy: req.body.userId,
-        dataStatus: 0,
+    if (isExistData.size > 0) {
+      res.status(400).send("you already request to join this community");
+    } else {
+      const joinedRequest = await data
+        .doc(req.body.communityId)
+        .collection("joinedRequestUserId")
+        .add({
+          userId: req.body.userId,
+          status: "pending",
+          createAt: moment().toISOString(),
+          createdBy: req.body.communityAdminUserId,
+          dataStatus: 0,
+        });
+
+      let authData = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: {
+          user: "srisawasdina@gmail.com",
+          pass: "na21122542",
+        },
       });
 
-    res.status(200).send("pending to joined successfully");
+      await authData.sendMail({
+        from: "Hello Helper<accounts@franciscoinoque.tech>",
+        to: user.data().email,
+        subject: "มีผู้ต้องการเข้่าร่วมชุมชนความข่วยเหลือ",
+        html: `สวัสดี<br /><br />มีผู้ต้องการขอเข้าร่วมชุมชนความช่วยเหลือ <br /><br />ลองเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
+      });
+
+      res.status(200).send(joinedRequest.id);
+    }
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -496,14 +599,26 @@ const updateJoinedCommunityRequest = async (req, res, next) => {
       .collection("communities")
       .doc(req.params.id)
       .collection("joinedRequestUserId")
-      .doc(req.params.requestid)
-      .update({
-        status: req.body.status,
-        modifiedAt: moment().toISOString(),
-        modifiedBy: req.body.userId,
-      });
+      .doc(req.body.joinedRequestId)
+      .delete();
 
-    res.status(200).send("join request updated successfully");
+    if (Boolean(req.body.status)) {
+      const newMember = await db
+        .collection("communities")
+        .doc(req.params.id)
+        .collection("members")
+        .add({
+          userId: req.body.requesterUserId,
+          role: 0,
+          status: 0,
+          createAt: moment().toISOString(),
+          createdBy: req.body.communityAdminUserId,
+          dataStatus: 0,
+        });
+      res.status(200).send(newMember.id);
+    } else {
+      res.status(200).send("join request updated successfully");
+    }
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -515,7 +630,7 @@ const updateCommunity = async (req, res, next) => {
     await document.update({
       ...req.body,
       modifiedAt: moment().toISOString(),
-      modifiedBy: req.body.userId,
+      modifiedBy: req.body.communityAdminUserId,
     });
     res.send("community updated successfully");
   } catch (error) {
@@ -528,10 +643,10 @@ const deleteCommunity = async (req, res, next) => {
     const document = db.collection("communities").doc(req.params.id);
     await document.update({
       deletedAt: moment().toISOString(),
-      deletedBy: req.body.userId,
+      deletedBy: req.body.communityAdminUserId,
       dataStatus: 1,
     });
-    res.status(200).send("this community has deleted");
+    res.status(200).send("deleted community successfully");
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -565,11 +680,132 @@ const getImage = async (req, res, next) => {
   });
 };
 
+const getCommunityMember = async (req, res, next) => {
+  try {
+    const entities = [];
+    const data = await db
+      .collection("users")
+      .where("communityId", "array-contains", req.params.id)
+      .get();
+
+    if (data.empty) {
+      res.status(200).send(entities);
+    } else {
+      await Promise.all(
+        data.docs.map(async (doc) => {
+          const community = await db
+            .collection("communities")
+            .doc(req.params.id)
+            .collection("members")
+            .where("userId", "==", doc.id)
+            .get();
+
+          const user = new User(
+            doc.id,
+            doc.data().loginType,
+            doc.data().username,
+            doc.data().email,
+            doc.data().verifiedEmailStatus,
+            doc.data().location,
+            doc.data().imageUrl,
+            doc.data().address,
+            doc.data().phoneNumber,
+            doc.data().recommend,
+            doc.data().rank,
+            doc.data().rating,
+            doc.data().communityId,
+            doc.data().category,
+            doc.data().requestSum,
+            doc.data().provideSum,
+            doc.data().followerUserId,
+            doc.data().followingUserId,
+            doc.data().provideId,
+            doc.data().requestId
+          );
+          entities.push(
+            Object.assign(user, { role: community.docs[0].data().role })
+          );
+        })
+      );
+      res.status(200).send(entities);
+    }
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+const getCommunityJoinedRequest = async (req, res, next) => {
+  try {
+    const requestUserId = await db
+      .collection("communities")
+      .doc(req.params.id)
+      .collection("joinedRequestUserId")
+      .get();
+
+    // const data = await db
+    //   .collection("users")
+    //   .where("createdBy", "in", requestUserId.data().joinedRequestUserId)
+    //   .get();
+
+    const entities = [];
+
+    if (requestUserId.empty) {
+      res.status(200).send(entities);
+    } else {
+      await Promise.all(
+        requestUserId.docs.map(async (requesterId) => {
+          const data = await db
+            .collection("users")
+            .where("createdBy", "==", requesterId.data().userId)
+            .get();
+
+          data.docs.map(async (doc) => {
+            const user = new User(
+              doc.id,
+              doc.data().loginType,
+              doc.data().username,
+              doc.data().email,
+              doc.data().verifiedEmailStatus,
+              doc.data().location,
+              doc.data().imageUrl,
+              doc.data().address,
+              doc.data().phoneNumber,
+              doc.data().recommend,
+              doc.data().rank,
+              doc.data().rating,
+              doc.data().communityId,
+              doc.data().category,
+              doc.data().requestSum,
+              doc.data().provideSum,
+              doc.data().followerUserId,
+              doc.data().followingUserId,
+              doc.data().provideId,
+              doc.data().requestId
+            );
+            entities.push(
+              Object.assign(user, {
+                status: requesterId.data().status,
+                joinedRequestId: requesterId.id,
+              })
+            );
+          });
+        })
+      );
+      res.status(200).send(entities);
+    }
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
 module.exports = {
   getCommunities,
   getCommunity,
+  getCommunityMember,
+  getMyCommunity,
   addCommunity,
-  joinedCommunityRequest,
+  getCommunityJoinedRequest,
+  addJoinedCommunityRequest,
   addMember,
   updateJoinedCommunityRequest,
   updateCommunity,
