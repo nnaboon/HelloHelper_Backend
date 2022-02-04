@@ -3,6 +3,7 @@ const admin = require("firebase-admin");
 const express = require("express");
 const cors = require("cors");
 var serviceAccount = require("./serviceAccountKey.json");
+
 const bodyParser = require("body-parser");
 const usersRoute = require("./rotues/users");
 const communityRoute = require("./rotues/community");
@@ -19,14 +20,14 @@ const uploadImageRoute = require("./rotues/uploadImage");
 
 const app = express();
 
-const PORT = 5000;
-
 app.use(cors({ origin: true }));
+
+const PORT = 5000;
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use("/users", usersRoute.routes);
+app.use("/user", usersRoute.routes);
 app.use("/community", communityRoute.routes);
 app.use("/request", requestRoute.routes);
 app.use("/provide", provideRoute.routes);
