@@ -1,6 +1,8 @@
 const Multer = require("multer");
 const express = require("express");
 const {
+  signin,
+  verifyToken,
   addUsers,
   getUsers,
   getUser,
@@ -25,12 +27,14 @@ const multer = Multer({
 
 router.get("/", getUsers);
 router.get("/:id", getUser);
-router.post("/", addUsers);
 router.get("image/:id", getImage);
 
+router.post("/", addUsers);
 router.post("/create", createUser);
 router.post("/send-mail-ver", sendVerificationEmail);
 router.post("/upload", multer.single("img"), uploadImage);
+router.post("/login", signin);
+router.post("/verify", verifyToken);
 
 router.put("/rank/:id", updateRank);
 router.put("/update-verification-status", updateUserVerificationEmailStatus);

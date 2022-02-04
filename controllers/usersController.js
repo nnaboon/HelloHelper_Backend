@@ -7,10 +7,49 @@ const nodemailer = require("nodemailer");
 const storage = admin.storage();
 const bucket = storage.bucket();
 
+const verifyToken = async (req, res, next) => {
+  try {
+    admin
+      .auth()
+      .verifyIdToken(req.body.idToken)
+      .then((response) => {
+        res.status(200).send(response);
+      })
+      .catch((error) => {
+        res.status(400).send(error.message);
+      });
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+const signin = async (req, res, next) => {
+  try {
+    const idToken = req.body.idToken.toString();
+
+    const expiresIn = 60 * 60 * 24 * 5 * 1000;
+
+    admin
+      .auth()
+      .createSessionCookie(idToken, { expiresIn })
+      .then(
+        (sessionCookie) => {
+          const options = { maxAge: expiresIn, httpOnly: true };
+          res.cookie("session", sessionCookie, options);
+          res.status(200).send(JSON.stringify({ status: "success" }));
+        },
+        (error) => {
+          res.status(401).send("UNAUTHORIZED REQUEST!");
+        }
+      );
+  } catch (error) {
+    res.status(401).json({ error: error.message });
+  }
+};
 // add new user after verified
 const addUsers = async (req, res, next) => {
   try {
-    db.collection("users").add({
+    await db.collection("users").doc(req.body.userId).set({
       loginType: req.body.loginType,
       username: req.body.username,
       email: req.body.email,
@@ -27,8 +66,8 @@ const addUsers = async (req, res, next) => {
       provideSum: 0,
       followerUserId: 0,
       followingUserId: 0,
-      provideId: 0,
-      requestId: 0,
+      // provideId: 0,
+      // requestId: 0,
       createAt: moment().toISOString(),
       createdBy: req.body.userId,
       dataStatus: 0,
@@ -99,7 +138,7 @@ const deleteUser = async (req, res, next) => {
     const document = db.collection("users").doc(req.params.id);
     await document.update({
       deletedAt: moment().toISOString(),
-      deletedBy: req.body.userId,
+      deletedBy: req.params.id,
       dataStatus: 1,
     });
     res.status(200).send("User has deleted");
@@ -144,8 +183,8 @@ const getUsers = async (req, res, next) => {
           doc.data().modifiedAt,
           doc.data().modifiedBy,
           doc.data().deletedAt,
-          doc.data().deletedBy,
-          doc.data().dataStatus
+          doc.data().deletedBy
+          // doc.data().dataStatus
         );
         entities.push(user);
       });
@@ -172,42 +211,42 @@ const updateUserVerificationEmailStatus = async (req, res, next) => {
 };
 
 const createUser = async (req, res, next) => {
+  // await admin
+  //   .auth()
+  //   .createUser({ email: req.body.email, password: req.body.password })
+  //   .then(async (userRecord) => {
+  let transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      user: "srisawasdina@gmail.com",
+      pass: "na21122542",
+    },
+  });
+
   await admin
     .auth()
-    .createUser({ email: req.body.email, password: req.body.password })
-    .then(async (userRecord) => {
-      let transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true,
-        auth: {
-          user: "srisawasdina@gmail.com",
-          pass: "na21122542",
-        },
+    .generateEmailVerificationLink(req.body.email)
+    .then(async (emailLink) => {
+      await await transporter.sendMail({
+        from: "Hello Helper<accounts@franciscoinoque.tech>",
+        to: req.body.email,
+        subject: "Email Verification",
+        html: `Hello User, to verify your email please , <a href=${emailLink}> click here </a>`,
       });
 
-      admin
-        .auth()
-        .generateEmailVerificationLink(req.body.email)
-        .then(async (emailLink) => {
-          await await transporter.sendMail({
-            from: "Hello Helper<accounts@franciscoinoque.tech>",
-            to: req.body.email,
-            subject: "Email Verification",
-            html: `Hello User, to verify your email please , <a href=${emailLink}> click here </a>`,
-          });
-
-          return await res
-            .status(200)
-            .send("please check in your inbox, we sent verification email");
-        })
-        .catch((error) => {
-          res.status(400).send(error.message);
-        });
+      return await res
+        .status(200)
+        .send("please check in your inbox, we sent verification email");
     })
     .catch((error) => {
       res.status(400).send(error.message);
     });
+  // })
+  // .catch((error) => {
+  //   res.status(400).send(error.message);
+  // });
 };
 
 const sendVerificationEmail = async (req, res, next) => {
@@ -251,15 +290,37 @@ const sendVerificationEmail = async (req, res, next) => {
 const getUser = async (req, res, next) => {
   try {
     const data = await db.collection("users").doc(req.params.id).get();
-    const id = data.id;
-    const entities = [];
+    // console.log(data.data().username);
+    // console.log(data.docs[0]);
+    // const user = new User(
+    //   data.id,
+    //   data.data().loginType,
+    //   data.data().username,
+    //   data.data().email,
+    //   data.data().verifiedEmailStatus,
+    //   data.data().location,
+    //   data.data().imageUrl,
+    //   data.data().address,
+    //   data.data().phoneNumber,
+    //   data.data().recommend,
+    //   data.data().rank,
+    //   data.data().rating,
+    //   data.data().communityId,
+    //   data.data().category,
+    //   data.data().requestSum,
+    //   data.data().provideSum,
+    //   data.data().followerUserId,
+    //   data.data().followingUserId,
+    //   data.data().provideId,
+    //   data.data().requestId
+    // );
 
-    if (data.empty) {
-      res.status(404).send("No user found");
+    if (data.exists) {
+      res.status(200).send({ userId: data.id, ...data.data() });
+      // res.status(200).send(user);
     } else {
-      entities.push({ userId: id, ...data.data() });
+      res.status(404).send("No user found");
     }
-    res.status(200).send(entities);
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -271,7 +332,7 @@ const uploadImage = async (req, res, next) => {
   const fileUpload = bucket.file(fileName);
   const blobStream = fileUpload.createWriteStream({
     metadata: {
-      contentType: req.file.mimetype,
+      contentType: "image/jpeg",
     },
   });
 
@@ -280,7 +341,16 @@ const uploadImage = async (req, res, next) => {
   });
 
   blobStream.on("finish", () => {
-    res.status(200).send("Upload complete!");
+    // console.log(res);
+    bucket
+      .file(fileName)
+      .getSignedUrl({
+        action: "read",
+        expires: "03-09-2491",
+      })
+      .then((signedUrls) => {
+        res.status(200).send(signedUrls[0]);
+      });
   });
 
   blobStream.end(req.file.buffer);
@@ -312,17 +382,18 @@ const updateRank = async (req, res, next) => {
           await db.collection("users").doc(req.params.id).update({ rank: 4 });
           break;
       }
+      res.status(200).send("rank updated successfully");
     } else {
       res.status(200).send("same rank");
     }
-
-    res.status(200).send("rank updated successfully");
   } catch (error) {
     res.status(400).send(error.message);
   }
 };
 
 module.exports = {
+  signin,
+  verifyToken,
   addUsers,
   getUsers,
   getUser,
