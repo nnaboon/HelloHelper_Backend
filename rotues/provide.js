@@ -1,7 +1,9 @@
 const Multer = require("multer");
+const path = require("path");
 
 const {
   getProvides,
+  getMyProvide,
   getProvide,
   addProvide,
   updatedProvide,
@@ -24,6 +26,7 @@ const multer = Multer({
 
 router.get("/", getProvides);
 router.get("/:id", getProvide);
+router.get("/me/:id", getMyProvide);
 router.get("image/:id", getImage);
 
 router.post("/", addProvide);
