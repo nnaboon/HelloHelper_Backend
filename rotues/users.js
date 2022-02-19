@@ -27,7 +27,7 @@ const multer = Multer({
 
 router.get("/", getUsers);
 router.get("/:id", getUser);
-router.get("image/:id", getImage);
+router.get("/:id/image", getImage);
 
 router.post("/", addUsers);
 router.post("/create", createUser);
@@ -36,10 +36,10 @@ router.post("/upload", multer.single("img"), uploadImage);
 router.post("/login", signin);
 router.post("/verify", verifyToken);
 
-router.put("/rank/:id", updateRank);
+router.put("/:id/rank", updateRank);
 router.put("/update-verification-status", updateUserVerificationEmailStatus);
 router.put("/:id", updateUserData);
-router.put("/delete/:id", deleteUser);
+router.put("/:id/disable", deleteUser);
 
 module.exports = {
   routes: router,

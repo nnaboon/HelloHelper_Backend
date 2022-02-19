@@ -7,9 +7,15 @@ const {
 } = require("../models/request");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
+const fs = require("fs");
 
 const storage = admin.storage();
 const bucket = storage.bucket();
+
+let fields = {};
+const BusBoy = require("busboy");
+const path = require("path");
+const os = require("os");
 
 const getRequests = async (req, res, next) => {
   try {
@@ -60,11 +66,17 @@ const getRequests = async (req, res, next) => {
           requesterUserId.forEach((doc) => {
             const requesterUser = new RequesterUserId(
               doc.data().userId,
-              doc.data().createAt,
+              doc.data().createdAt
+                ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+                : undefined,
               doc.data().createdBy,
-              doc.data().modifiedAt,
+              doc.data().modifiedAt
+                ? new Date(doc.data().modifiedAt._seconds * 1000).toUTCString()
+                : undefined,
               doc.data().modifiedBy,
-              doc.data().deletedAt,
+              doc.data().deletedAt
+                ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+                : undefined,
               doc.data().deletedBy,
               doc.data().dataStatus
             );
@@ -85,11 +97,17 @@ const getRequests = async (req, res, next) => {
             const providedUser = new ProvidedUserId(
               doc.data().userId,
               doc.data().status,
-              doc.data().createAt,
+              doc.data().createdAt
+                ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+                : undefined,
               doc.data().createdBy,
-              doc.data().modifiedAt,
+              doc.data().modifiedAt
+                ? new Date(doc.data().modifiedAt._seconds * 1000).toUTCString()
+                : undefined,
               doc.data().modifiedBy,
-              doc.data().deletedAt,
+              doc.data().deletedAt
+                ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+                : undefined,
               doc.data().deletedBy,
               doc.data().dataStatus
             );
@@ -146,11 +164,17 @@ const getRequest = async (req, res, next) => {
             .get();
           const requesterUser = new RequesterUserId(
             doc.data().userId,
-            doc.data().createAt,
+            doc.data().createdAt
+              ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+              : undefined,
             doc.data().createdBy,
-            doc.data().modifiedAt,
+            doc.data().modifiedAt
+              ? new Date(doc.data().modifiedAt._seconds * 1000).toUTCString()
+              : undefined,
             doc.data().modifiedBy,
-            doc.data().deletedAt,
+            doc.data().deletedAt
+              ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+              : undefined,
             doc.data().deletedBy,
             doc.data().dataStatus
           );
@@ -170,11 +194,17 @@ const getRequest = async (req, res, next) => {
         const providedUser = new ProvidedUserId(
           doc.data().userId,
           doc.data().status,
-          doc.data().createAt,
+          doc.data().createdAt
+            ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+            : undefined,
           doc.data().createdBy,
-          doc.data().modifiedAt,
+          doc.data().modifiedAt
+            ? new Date(doc.data().modifiedAt._seconds * 1000).toUTCString()
+            : undefined,
           doc.data().modifiedBy,
-          doc.data().deletedAt,
+          doc.data().deletedAt
+            ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+            : undefined,
           doc.data().deletedBy,
           doc.data().dataStatus
         );
@@ -196,7 +226,7 @@ const getMyRequest = async (req, res, next) => {
 
     const data = await db
       .collection("requests")
-      .where("userId", "==", req.params.id)
+      .where("userId", "==", req.params.userId)
       .where("dataStatus", "==", 0)
       .get();
 
@@ -225,56 +255,60 @@ const getMyRequest = async (req, res, next) => {
               doc.data().visibility
             );
 
-            const requesterUserEntities = [];
-            const providedUserEntities = [];
+            // const requesterUserEntities = [];
+            // const providedUserEntities = [];
 
-            const requesterUserId = await db
-              .collection("requests")
-              .doc(id)
-              .collection("requesterUserId")
-              .get();
+            // const requesterUserId = await db
+            //   .collection("requests")
+            //   .doc(id)
+            //   .collection("requesterUserId")
+            //   .get();
 
-            requesterUserId.forEach((doc) => {
-              const requesterUser = new RequesterUserId(
-                doc.data().userId,
-                doc.data().createAt,
-                doc.data().createdBy,
-                doc.data().modifiedAt,
-                doc.data().modifiedBy,
-                doc.data().deletedAt,
-                doc.data().deletedBy,
-                doc.data().dataStatus
-              );
-              requesterUserEntities.push(requesterUser);
-            });
+            // requesterUserId.forEach((doc) => {
+            //   const requesterUser = new RequesterUserId(
+            //     doc.data().userId,
+            //     new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
+            //     doc.data().createdBy,
+            //     new Date(doc.data().modifiedAt._seconds * 1000).toUTCString(),
+            //     doc.data().modifiedBy,
+            //     doc.data().deletedAt
+            //       ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+            //       : undefined,
+            //     doc.data().deletedBy,
+            //     doc.data().dataStatus
+            //   );
+            //   requesterUserEntities.push(requesterUser);
+            // });
 
-            Object.assign(request, {
-              requesterUserId: requesterUserEntities,
-            });
+            // Object.assign(request, {
+            //   requesterUserId: requesterUserEntities,
+            // });
 
-            const providedUserId = await db
-              .collection("requests")
-              .doc(id)
-              .collection("providedUserId")
-              .get();
+            // const providedUserId = await db
+            //   .collection("requests")
+            //   .doc(id)
+            //   .collection("providedUserId")
+            //   .get();
 
-            providedUserId.forEach((doc) => {
-              const providedUser = new ProvidedUserId(
-                doc.data().userId,
-                doc.data().status,
-                doc.data().createAt,
-                doc.data().createdBy,
-                doc.data().modifiedAt,
-                doc.data().modifiedBy,
-                doc.data().deletedAt,
-                doc.data().deletedBy,
-                doc.data().dataStatus
-              );
-              providedUserEntities.push(providedUser);
-            });
-            Object.assign(request, {
-              providedUserId: providedUserEntities,
-            });
+            // providedUserId.forEach((doc) => {
+            //   const providedUser = new ProvidedUserId(
+            //     doc.data().userId,
+            //     doc.data().status,
+            //     new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
+            //     doc.data().createdBy,
+            //     new Date(doc.data().modifiedAt._seconds * 1000).toUTCString(),
+            //     doc.data().modifiedBy,
+            //     doc.data().deletedAt
+            //       ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+            //       : undefined,
+            //     doc.data().deletedBy,
+            //     doc.data().dataStatus
+            //   );
+            //   providedUserEntities.push(providedUser);
+            // });
+            // Object.assign(request, {
+            //   providedUserId: providedUserEntities,
+            // });
             entities.push(request);
           }
         })
@@ -290,9 +324,10 @@ const addRequest = async (req, res, next) => {
   try {
     db.collection("requests").add({
       ...req.body,
-      createAt: moment().toISOString(),
+      visibility: 1,
+      createdAt: admin.firestore.Timestamp.now(),
       createdBy: req.body.userId,
-      modifiedAt: moment().toISOString(),
+      modifiedAt: admin.firestore.Timestamp.now(),
       modifiedBy: req.body.userId,
       dataStatus: 0,
     });
@@ -331,7 +366,7 @@ const addRequesterUserId = async (req, res, next) => {
   try {
     const isExistData = await db
       .collection("requests")
-      .doc(req.params.id)
+      .doc(req.params.requestId)
       .collection("requesterUserId")
       .where("userId", "==", req.body.userId)
       .get();
@@ -339,15 +374,18 @@ const addRequesterUserId = async (req, res, next) => {
     if (isExistData.size > 0) {
       res.status(400).send("you already send request");
     } else {
-      const request = await db.collection("requests").doc(req.params.id).get();
+      const request = await db
+        .collection("requests")
+        .doc(req.params.requestId)
+        .get();
       const data = await db
         .collection("requests")
-        .doc(req.params.id)
+        .doc(req.params.requestId)
         .collection("requesterUserId")
         .add({
           userId: req.body.userId,
-          createAt: moment().toISOString(),
-          createdBy: req.body.userId,
+          createdAt: admin.firestore.Timestamp.now(),
+          createdBy: req.params.userId,
           dataStatus: 0,
         });
 
@@ -381,24 +419,25 @@ const addRequesterUserId = async (req, res, next) => {
 
 const addProvidedUserId = async (req, res, next) => {
   try {
-    const data = db
+    const data = await db
       .collection("requests")
-      .doc(req.params.id)
+      .doc(req.params.requestId)
       .collection("providedUserId")
       .get();
 
-    if (data.exists) {
+    if (data.size > 0) {
       res.status(400).send("already have provided");
     } else {
       await db
         .collection("requests")
-        .doc(req.params.id)
+        .doc(req.params.requestId)
         .collection("providedUserId")
         .add({
-          userId: req.body.requesterUserId,
+          userId: req.body.userId,
           status: "waiting",
-          createAt: moment().toISOString(),
-          createdBy: req.body.userId,
+          createdAt: admin.firestore.Timestamp.now(),
+          createdBy: req.params.userId,
+          dataStatus: 0,
         });
       res.status(200).send("add provided successfully");
     }
@@ -417,7 +456,7 @@ const updateProvidedStatus = async (req, res, next) => {
       .doc(req.params.providedId)
       .update({
         status: req.body.status,
-        modifiedAt: moment().toISOString(),
+        modifiedAt: admin.firestore.Timestamp.now(),
         modifiedBy: req.body.userId,
       });
 
@@ -441,7 +480,7 @@ const deletedRequest = async (req, res, next) => {
   try {
     const data = db.collection("requests").doc(req.params.id);
     await data.update({
-      deletedAt: moment().toISOString(),
+      deletedAt: admin.firestore.Timestamp.now(),
       deletedBy: req.body.userId,
       dataStatus: 1,
     });
@@ -452,38 +491,128 @@ const deletedRequest = async (req, res, next) => {
 };
 
 const uploadImage = async (req, res, next) => {
-  const folder = "requests";
-  const fileName = `${folder}/${Date.now()}`;
-  const fileUpload = bucket.file(fileName);
-  const blobStream = fileUpload.createWriteStream({
-    metadata: {
-      contentType: "image/jpeg",
-    },
+  const busboy = new BusBoy({ headers: req.headers });
+
+  let imageFileName = {};
+  let imagesToUpload = [];
+  let imageToAdd = {};
+  let imageUrls = [];
+
+  busboy.on("field", (fieldname, fieldvalue) => {
+    fields[fieldname] = fieldvalue;
   });
 
-  blobStream.on("error", (err) => {
-    res.status(405).json(err);
+  busboy.on("file", (fieldname, file, filename, encoding, mimetype) => {
+    if (mimetype !== "image/jpeg" && mimetype !== "image/png") {
+      return res.status(400).json({ error: "Wrong file type submitted!" });
+    }
+
+    // Getting extension of any image
+    const imageExtension = filename.split(".")[filename.split(".").length - 1];
+
+    // Setting filename
+    imageFileName = `${Math.round(
+      Math.random() * 1000000000
+    )}.${imageExtension}`;
+
+    // Creating path
+    const filepath = path.join(os.tmpdir(), imageFileName);
+    imageToAdd = {
+      imageFileName,
+      filepath,
+      mimetype,
+    };
+
+    file.pipe(fs.createWriteStream(filepath));
+    //Add the image to the array
+    imagesToUpload.push(imageToAdd);
   });
 
-  blobStream.on("finish", () => {
-    // console.log(res);
-    bucket
-      .file(fileName)
-      .getSignedUrl({
-        action: "read",
-        expires: "03-09-2491",
-      })
-      .then((signedUrls) => {
-        res.status(200).send(signedUrls[0]);
+  busboy.on("finish", async () => {
+    let promises = [];
+
+    imagesToUpload.forEach((imageToBeUploaded) => {
+      imageUrls.push(
+        `https://firebasestorage.googleapis.com/v0/b/senior-project-97cfa.appspot.com/o/${imageToBeUploaded.imageFileName}?alt=media`
+      );
+      promises.push(
+        admin
+          .storage()
+          .bucket()
+          .upload(`${imageToBeUploaded.filepath}`, {
+            destination: `requests/${imageFileName}`,
+            resumable: false,
+            metadata: {
+              metadata: {
+                contentType: imageToBeUploaded.mimetype,
+              },
+            },
+          })
+      );
+    });
+
+    try {
+      await Promise.all(promises).then(() => {
+        bucket
+          .file(`requests/${imageFileName}`)
+          .getSignedUrl({
+            action: "read",
+            expires: "03-09-2491",
+          })
+          .then((signedUrls) => {
+            res.status(200).send(signedUrls[0]);
+          });
       });
+    } catch (err) {
+      console.log(err);
+      res.status(500).json(err);
+    }
   });
 
-  blobStream.end(req.file.buffer);
+  busboy.end(req.rawBody);
 };
 const getImage = async (req, res, next) => {
   const file = bucket.file(`requests/${req.params.id}`);
   file.download().then((downloadResponse) => {
     res.status(200).send(downloadResponse[0]);
+  });
+};
+
+const deleteProvideUserId = async (req, res, next) => {
+  const collectionRef = db
+    .collection("requests")
+    .doc(req.params.requestId)
+    .collection("providedUserId");
+  const query = collectionRef.orderBy("createdAt");
+
+  async function deleteQueryBatch(db, query, resolve) {
+    const snapshot = await query.get();
+
+    const batchSize = snapshot.size;
+    if (batchSize === 0) {
+      // When there are no documents left, we are done
+      resolve();
+      return res.status(200).send("deleted providedUserId successfully");
+    }
+
+    // Delete documents in a batch
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+
+    // Recurse on the next process tick, to avoid
+    // exploding the stack.
+    process.nextTick(() => {
+      deleteQueryBatch(db, query, resolve);
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    deleteQueryBatch(db, query, resolve).catch((error) => {
+      return res.status(400).send(error.message);
+    });
   });
 };
 
@@ -497,6 +626,7 @@ module.exports = {
   updateProvidedStatus,
   updatedRequest,
   deletedRequest,
+  deleteProvideUserId,
   uploadImage,
   getImage,
 };

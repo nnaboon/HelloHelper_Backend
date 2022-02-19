@@ -1,8 +1,8 @@
 class Chat {
   constructor(
-    id,
-    user,
-    message,
+    chatId,
+    users,
+    lastMessage,
     createdAt,
     createdBy,
     modifiedAt,
@@ -11,15 +11,11 @@ class Chat {
     deletedBy,
     dataStatus
   ) {
-    this.id = id;
-    this.user = user;
-    this.message = message;
+    this.chatId = chatId;
+    this.users = users;
+    this.lastMessage = lastMessage;
     this.createdAt = createdAt;
     this.createdBy = createdBy;
-    this.modifiedAt = modifiedAt;
-    this.modifiedBy = modifiedBy;
-    this.deletedAt = deletedAt;
-    this.deletedBy = deletedBy;
     this.dataStatus = dataStatus;
   }
 }
@@ -32,13 +28,12 @@ class User {
 }
 
 class Message {
-  constructor(id, sentAt, userId, readStatus, readAt, messageText) {
+  constructor(id, readStatus, messageText, createdAt, createdBy) {
     this.id = id;
-    this.sentAt = sentAt;
-    this.userId = userId;
     this.readStatus = readStatus;
-    this.readAt = readAt;
     this.messageText = messageText;
+    this.createdAt = createdAt;
+    this.createdBy = createdBy;
   }
 }
 

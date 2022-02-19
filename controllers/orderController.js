@@ -5,7 +5,7 @@ const admin = require("firebase-admin");
 
 const getOrders = async (req, res, next) => {
   try {
-    const data = await db.collection("orders").get();
+    const data = await db.collection("orders").orderBy("title", "asc").get();
     const entities = [];
 
     if (data.empty) {
@@ -14,6 +14,7 @@ const getOrders = async (req, res, next) => {
       data.docs.map((doc) => {
         const order = new Order(
           doc.id,
+          doc.data().chatId,
           doc.data().orderReferenceType,
           doc.data().orderReferenceId,
           doc.data().title,
@@ -28,9 +29,9 @@ const getOrders = async (req, res, next) => {
           doc.data().providerUserId,
           doc.data().payment,
           doc.data().status,
-          doc.data().createdAt,
+          new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
           doc.data().createdBy,
-          doc.data().modifiedAt,
+          new Date(doc.data().modifiedAt._seconds * 1000).toUTCString(),
           doc.data().modifiedBy,
           doc.data().deletedAt,
           doc.data().deletedBy,
@@ -50,12 +51,66 @@ const getOrder = async (req, res, next) => {
   try {
     const data = await db.collection("orders").doc(req.params.id).get();
     const id = data.id;
-    const entities = [];
+    // const entities = [];
 
     if (data.empty) {
       res.status(404).send("No order found");
     } else {
-      entities.push({ id: id, ...data.data() });
+      // entities.push({ id: id, ...data.data() });
+      res.status(200).send({ id: id, ...data.data() });
+    }
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+const getWaitForConfirmOrders = async (req, res, next) => {
+  try {
+    const data = await db
+      .collection("orders")
+      .where("chatId", "==", req.params.id)
+      .where("status", "==", "waiting")
+      .get();
+    const entities = [];
+
+    if (data.size == 0) {
+      res.status(200).send(entities);
+    } else {
+      data.docs.map((doc) => {
+        const order = new Order(
+          doc.id,
+          doc.data().chatId,
+          doc.data().orderReferenceType,
+          doc.data().orderReferenceId,
+          doc.data().title,
+          doc.data().location,
+          doc.data().description,
+          doc.data().number,
+          doc.data().price,
+          doc.data().serviceCharge,
+          doc.data().rating,
+          doc.data().receiver,
+          doc.data().requesterUserId,
+          doc.data().providerUserId,
+          doc.data().payment,
+          doc.data().status,
+          doc.data().createdAt
+            ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+            : undefined,
+          doc.data().createdBy,
+          doc.data().modifiedAt
+            ? new Date(doc.data().modifiedAt._seconds * 1000).toUTCString()
+            : undefined,
+          doc.data().modifiedBy,
+          doc.data().deletedAt
+            ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+            : undefined,
+          doc.data().deletedBy,
+          doc.data().dataStatus
+        );
+
+        entities.push(order);
+      });
       res.status(200).send(entities);
     }
   } catch (error) {
@@ -67,7 +122,6 @@ const getMyRequestOrders = async (req, res, next) => {
   try {
     const data = await db
       .collection("orders")
-      .where("orderReferenceType", "==", "request")
       .where("requesterUserId", "==", req.params.userId)
       .get();
 
@@ -80,6 +134,7 @@ const getMyRequestOrders = async (req, res, next) => {
         if (doc.data().dataStatus == 0) {
           const order = new Order(
             doc.id,
+            doc.data().chatId,
             doc.data().orderReferenceType,
             doc.data().orderReferenceId,
             doc.data().title,
@@ -109,7 +164,6 @@ const getMyProvideOrders = async (req, res, next) => {
   try {
     const data = await db
       .collection("orders")
-      .where("orderReferenceType", "==", "provide")
       .where("providerUserId", "==", req.params.userId)
       .get();
 
@@ -122,6 +176,7 @@ const getMyProvideOrders = async (req, res, next) => {
         if (doc.data().dataStatus == 0) {
           const order = new Order(
             doc.id,
+            doc.data().chatId,
             doc.data().orderReferenceType,
             doc.data().orderReferenceId,
             doc.data().title,
@@ -153,8 +208,8 @@ const addOrder = async (req, res, next) => {
     await db.collection("orders").add({
       ...req.body,
       status: "waiting",
-      createAt: moment().toISOString(),
-      createdBy: req.body.userId,
+      createdAt: admin.firestore.Timestamp.now(),
+      createdBy: req.body.requesterUserId,
       dataStatus: 0,
     });
     res.status(200).send("add order successfully");
@@ -165,22 +220,48 @@ const addOrder = async (req, res, next) => {
 
 const updateOrderStatus = async (req, res, next) => {
   try {
-    await db.collection("orders").doc(req.params.id).update({
-      status: req.body.status,
-      modifiedAt: moment().toISOString(),
-      modifiedBy: req.body.providerUserId,
-      dataStatus: 0,
-    });
-    res.status(200).send("updated order successfully");
+    return db
+      .collection("orders")
+      .doc(req.params.id)
+      .update({
+        status: req.body.status,
+        modifiedAt: admin.firestore.Timestamp.now(),
+        modifiedBy: req.body.providerUserId,
+        dataStatus: 0,
+      })
+      .then(() => {
+        return db.collection("orders").doc(req.params.id).get();
+      })
+      .then(async (result) => {
+        if (result.data().orderReferenceType === "request") {
+          const provide = await db
+            .collection("requests")
+            .doc(req.params.id)
+            .collection("providedUserId")
+            .get();
+
+          provide.forEach(async (doc) => {
+            await db
+              .collection("requests")
+              .doc(req.params.id)
+              .collection("providedUserId")
+              .doc(doc.id)
+              .update({ status: req.body.status });
+          });
+          res.status(200).send("updated order successfully");
+        } else {
+          res.status(200).send("updated order successfully");
+        }
+      });
   } catch (error) {
     res.status(400).send(error.message);
   }
 };
 
-const deleteOrder = async (req, res, next) => {
+const disableOrder = async (req, res, next) => {
   try {
     await db.collection("orders").doc(req.params.id).update({
-      deletedAt: moment().toISOString(),
+      deletedAt: admin.firestore.Timestamp.now(),
       deletedBy: req.body.userId,
       dataStatus: 1,
     });
@@ -190,22 +271,37 @@ const deleteOrder = async (req, res, next) => {
   }
 };
 
+const deleteConfirmOrder = async (req, res, next) => {
+  try {
+    await db.collection("orders").doc(req.params.id).delete();
+    res.status(200).send("updated order successfully");
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
 const updateProvideSum = async (req, res, next) => {
   try {
-    const provideSumUserPrev = await db
-      .collection("users")
-      .doc(req.body.providerUserId)
-      .get();
+    const data = await db.collection("orders").doc(req.params.id).update({
+      rating: req.body.rating,
+      modifiedAt: admin.firestore.Timestamp.now(),
+      modifiedBy: req.body.requesterUserId,
+    });
 
-    const provideSumOrderPrev = await db
-      .collection("provides")
-      .doc(req.body.orderReferenceId)
-      .get();
+    // const provideSumUserPrev = await db
+    //   .collection("users")
+    //   .doc(req.body.providerUserId)
+    //   .get();
 
-    const requestSumPrev = await db
-      .collection("users")
-      .doc(req.body.requesterUserId)
-      .get();
+    // const provideSumOrderPrev = await db
+    //   .collection("provides")
+    //   .doc(req.body.orderReferenceId)
+    //   .get();
+
+    // const requestSumPrev = await db
+    //   .collection("users")
+    //   .doc(req.body.requesterUserId)
+    //   .get();
 
     // update provider side
     await db
@@ -276,6 +372,12 @@ const updateProvideSum = async (req, res, next) => {
 
 const updateRequestSum = async (req, res, next) => {
   try {
+    const data = await db.collection("orders").doc(req.params.id).update({
+      rating: req.body.rating,
+      modifiedAt: admin.firestore.Timestamp.now(),
+      modifiedBy: req.body.requesterUserId,
+    });
+
     const requestSumPrev = await db
       .collection("users")
       .doc(req.body.requesterUserId)
@@ -327,11 +429,13 @@ const updateRequestSum = async (req, res, next) => {
 module.exports = {
   getOrders,
   getOrder,
+  getWaitForConfirmOrders,
   getMyRequestOrders,
   getMyProvideOrders,
   addOrder,
   updateOrderStatus,
-  deleteOrder,
+  disableOrder,
+  deleteConfirmOrder,
   updateRequestSum,
   updateProvideSum,
 };

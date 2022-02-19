@@ -38,7 +38,7 @@ class Provide {
     this.hashtag = hashtag;
     this.requesterUserId = requesterUserId;
     this.visibility = visibility;
-    this.createAt = createdAt;
+    this.createdAt = createdAt;
     this.createdBy = createdBy;
     this.modifiedAt = modifiedAt;
     this.modifiedBy = modifiedBy;
@@ -52,7 +52,7 @@ class RequesterUserId {
   constructor(
     userId,
     status,
-    createdAt,
+    createddAt,
     createdBy,
     modifiedAt,
     modifiedBy,
@@ -62,7 +62,7 @@ class RequesterUserId {
   ) {
     this.userId = userId;
     this.status = status;
-    this.createAt = createdAt;
+    this.createdAt = createdAt;
     this.createdBy = createdBy;
     this.modifiedAt = modifiedAt;
     this.modifiedBy = modifiedBy;

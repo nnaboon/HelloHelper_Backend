@@ -12,6 +12,7 @@ const {
   uploadImage,
   getImage,
   updateProvideSum,
+  searchProvide,
 } = require("../controllers/provideController");
 
 const express = require("express");
@@ -26,16 +27,17 @@ const multer = Multer({
 
 router.get("/", getProvides);
 router.get("/:id", getProvide);
-router.get("/me/:id", getMyProvide);
-router.get("image/:id", getImage);
+router.get("/user/:userId", getMyProvide);
+router.get("/:id/image", getImage);
+router.get("/search/:category", searchProvide);
 
 router.post("/", addProvide);
-router.post("/requester/:id", addRequesterUser);
+router.post("/:provideId/requester/:userId", addRequesterUser);
 router.post("/upload", multer.single("img"), uploadImage);
 
 router.put("/:id", updatedProvide);
-router.put("/delete/:id", deletedProvide);
-router.put("/sum/:id", updateProvideSum);
+router.put("/:id/disable", deletedProvide);
+router.put("/:id/sum", updateProvideSum);
 
 module.exports = {
   routes: router,

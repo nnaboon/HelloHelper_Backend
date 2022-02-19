@@ -40,7 +40,7 @@ class Request {
     this.providedUserId = providedUserId;
     this.requesterUserId = requesterUserId;
     this.visibility = visibility;
-    this.createAt = createdAt;
+    this.createdAt = createdAt;
     this.createdBy = createdBy;
     this.modifiedAt = modifiedAt;
     this.modifiedBy = modifiedBy;
@@ -62,7 +62,7 @@ class RequesterUserId {
     dataStatus
   ) {
     this.userId = userId;
-    this.createAt = createdAt;
+    this.createdAt = createdAt;
     this.createdBy = createdBy;
     this.modifiedAt = modifiedAt;
     this.modifiedBy = modifiedBy;
@@ -74,7 +74,7 @@ class RequesterUserId {
 
 class ProvidedUserId {
   constructor(
-    id,
+    userId,
     status,
     createdAt,
     createdBy,
@@ -84,9 +84,9 @@ class ProvidedUserId {
     deletedBy,
     dataStatus
   ) {
-    this.id = id;
+    this.userId = userId;
     this.status = status;
-    this.createAt = createdAt;
+    this.createdAt = createdAt;
     this.createdBy = createdBy;
     this.modifiedAt = modifiedAt;
     this.modifiedBy = modifiedBy;

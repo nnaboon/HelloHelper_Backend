@@ -48,7 +48,7 @@ class User {
     this.followingUserId = followingUserId;
     this.provideId = provideId;
     this.requestId = requestId;
-    this.createAt = createdAt;
+    this.createdAt = createdAt;
     this.createdBy = createdBy;
     this.modifiedAt = modifiedAt;
     this.modifiedBy = modifiedBy;

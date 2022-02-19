@@ -32,23 +32,23 @@ const multer = Multer({
 
 router.get("/", getCommunities);
 router.get("/:id", getCommunity);
-router.get("/member/:id", getCommunityMember);
-router.get("/me", getMyCommunity);
-router.get("/request/:id", getCommunityRequest);
-router.get("/provide/:id", getCommunityProvide);
+router.get("/:id/member", getCommunityMember);
+router.get("/user/:userId", getMyCommunity);
+router.get("/:id/request", getCommunityRequest);
+router.get("/:id/provide", getCommunityProvide);
 router.get("image/:id", getImage);
 
 router.post("/", addCommunity);
-router.post("/member/:id", addMember);
+router.post("/:id/member", addMember);
 router.post("/join", addJoinedCommunityRequest);
-router.post("/upload/:id", multer.single("img"), uploadImage);
-router.get("/join/:id", getCommunityJoinedRequest);
+router.post("/upload", multer.single("img"), uploadImage);
+router.get("/:id/join", getCommunityJoinedRequest);
 
 router.put("/:id", updateCommunity);
-router.put("/member/:communityId/:memberId", updateMemberRole);
-router.put("/ban/:communityId/:memberId", bannedMember);
-router.put("/update/join/:id", updateJoinedCommunityRequest);
-router.put("/delete/:id", deleteCommunity);
+router.put("/:communityId/member/:memberId", updateMemberRole);
+router.put("/:communityId/ban/:memberId", bannedMember);
+router.put("/:id/join", updateJoinedCommunityRequest);
+router.put("/:id/disable", deleteCommunity);
 
 module.exports = {
   routes: router,

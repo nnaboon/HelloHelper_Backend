@@ -10,6 +10,7 @@ const {
   updateProvidedStatus,
   updatedRequest,
   deletedRequest,
+  deleteProvideUserId,
   uploadImage,
   getImage,
 } = require("../controllers/requestController");
@@ -27,18 +28,19 @@ const multer = Multer({
 
 router.get("/", getRequests);
 router.get("/:id", getRequest);
-router.get("image/:id", getImage);
-router.get("/me/:id", getMyRequest);
+router.get("/:id/image", getImage);
+router.get("/user/:userId", getMyRequest);
 
 router.post("/", addRequest);
-router.post("/requester/:id", addRequesterUserId);
-router.post("/provided/:id", addProvidedUserId);
+router.post("/:requestId/requester/:userId", addRequesterUserId);
+router.post("/:requestId/provided/:userId", addProvidedUserId);
 router.post("/upload", multer.single("img"), uploadImage);
 
 router.put("/:id", updatedRequest);
-router.put("/delete/:id", deletedRequest);
-router.put("/provided/:requestId/:providedId", updateProvidedStatus);
+router.put("/:id/disable", deletedRequest);
+router.put("/:requestId/provided/:providedId", updateProvidedStatus);
 
+router.delete("/:requestId/provided", deleteProvideUserId);
 module.exports = {
   routes: router,
 };

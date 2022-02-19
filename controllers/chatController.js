@@ -4,6 +4,62 @@ const admin = require("firebase-admin");
 
 const { Chat, User, Message } = require("../models/chat");
 
+const getUserChatRooms = async (req, res, next) => {
+  try {
+    const entities = [];
+
+    const data = await db
+      .collection("chats")
+      .where("users", "array-contains", req.params.userId)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    if (data.empty) {
+      res.status(200).send(entities);
+    } else {
+      await Promise.all(
+        data.docs.map(async (doc) => {
+          const chat = new Chat(
+            doc.id,
+            doc.data().users,
+            doc.data().lastMessage,
+            new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
+            doc.data().createdBy,
+            doc.data().dataStatus
+          );
+
+          const messages = [];
+          const message = await db
+            .collection("chats")
+            .doc(doc.id)
+            .collection("messages")
+            .orderBy("createdAt")
+            .get();
+
+          if (message.size > 0) {
+            message.forEach((doc) => {
+              const messageText = new Message(
+                doc.id,
+                doc.data().readStatus,
+                doc.data().messageText,
+                new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
+                doc.data().createdBy
+              );
+              messages.push(messageText);
+            });
+            entities.push({ ...chat, messages: messages });
+          } else {
+            entities.push({ ...chat, messages: [] });
+          }
+        })
+      );
+      res.status(200).send(entities);
+    }
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
 const getChatRoom = async (req, res, next) => {
   try {
     const entities = [];
@@ -11,63 +67,31 @@ const getChatRoom = async (req, res, next) => {
 
     const data = await db.collection("chats").doc(req.params.id).get();
 
-    const message = await db
-      .collection("chats")
-      .doc(req.params.id)
-      .collection("message")
-      .get();
+    if (data.exist) {
+      const message = await db
+        .collection("chats")
+        .doc(req.params.id)
+        .collection("messages")
+        .orderBy("createdAt")
+        .get();
 
-    message.forEach((doc) => {
-      const messageText = new Message(
-        doc.id,
-        doc.data().sentAt,
-        doc.data().sentBy,
-        doc.data().userId,
-        doc.data().readStatus,
-        doc.data().messageText
-      );
+      message.forEach((doc) => {
+        const messageText = new Message(
+          doc.id,
+          doc.data().readStatus,
+          doc.data().messageText,
+          new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
+          doc.data().createdBy
+        );
 
-      messages.push(messageText);
-    });
+        messages.push(messageText);
+      });
 
-    entities.push({ chatRoomId: data.id, ...data.data(), message: messages });
-
-    // data.forEach(async (doc) => {
-    //   const chat = new Chat(
-    //     doc.id,
-    //     doc.data().user,
-    //     doc.data().createdBy,
-    //     doc.data().createdAt,
-    //     doc.data().modifiedAt,
-    //     doc.data().modifiedBy,
-    //     doc.data().deletedAt,
-    //     doc.data().deletedBy,
-    //     doc.data().dataStatus
-    //   );
-
-    //   const messages = [];
-
-    //   const message = await db
-    //     .collection("chats")
-    //     .doc(req.params.id)
-    //     .collection("message")
-    //     .get();
-
-    //   message.forEach((doc) => {
-    //     const messageText = new Message(
-    //       doc.id,
-    //       doc.data().sentAt,
-    //       doc.data().sentBy,
-    //       doc.data().userId,
-    //       doc.data().readStatus,
-    //       doc.data().messageText
-    //     );
-
-    //     messages.push(messageText);
-    //   });
-    // });
-
-    res.status(200).send(entities);
+      entities.push({ chatId: data.id, ...data.data(), messages: messages });
+      res.status(200).send(entities);
+    } else {
+      res.status(200).send(entities);
+    }
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -75,46 +99,193 @@ const getChatRoom = async (req, res, next) => {
 
 const addChatRoom = async (req, res, next) => {
   try {
-    await db.collection("chats").add({
-      user: [
-        {
-          userId: req.body.requesterUserId,
-          lastMessageId: "",
-        },
-        {
-          userId: req.body.providerUserId,
-          lastMessageId: "",
-        },
-      ],
-      createAt: moment().toISOString(),
-      createdBy: req.body.requesterUserId,
-      dataStatus: 0,
-    });
+    const isExistChatRoom = await db
+      .collection("chats")
+      .where("users", "array-contains-any", [
+        req.body.requesterUserId,
+        req.body.providerUserId,
+      ])
+      .get();
 
-    await db.collection("chats").doc(req.params.id).collection("message").add({
-      sentAt: moment().toISOString(),
-      sentBy: req.body.userId1,
-      readStatus: 0,
-      messageText: req.body.messageText,
-    });
+    if (isExistChatRoom.empty) {
+      const newChatRoom = await db.collection("chats").add({
+        lastMessage: [
+          {
+            userId: req.body.requesterUserId,
+            lastMessage: undefined,
+          },
+          {
+            userId: req.body.providerUserId,
+            lastMessage: undefined,
+          },
+        ],
+        users: [req.body.requesterUserId, req.body.providerUserId],
+        createdAt: admin.firestore.Timestamp.now(),
+        createdBy: req.body.requesterUserId,
+        dataStatus: 0,
+      });
+      res.status(200).send(newChatRoom.id);
+    } else {
+      const data = isExistChatRoom.docs.filter(
+        (doc) =>
+          doc.data().users.includes(req.body.providerUserId) &&
+          doc.data().users.includes(req.body.requesterUserId)
+      );
 
-    res.status(200).send("created chat room successfully");
+      if (data.length > 0) {
+        res.status(200).send(data[0].id);
+      } else {
+        const newChatRoom = await db.collection("chats").add({
+          lastMessage: [
+            {
+              userId: req.body.requesterUserId,
+            },
+            {
+              userId: req.body.providerUserId,
+            },
+          ],
+          users: [req.body.requesterUserId, req.body.providerUserId],
+          createdAt: admin.firestore.Timestamp.now(),
+          createdBy: req.body.requesterUserId,
+          dataStatus: 0,
+        });
+        res.status(200).send(newChatRoom.id);
+      }
+      // isExistChatRoom.docs.map(async (doc, index) => {
+      //   console.log(
+      //     doc.data().users.includes(req.body.providerUserId),
+      //     doc.data().users.includes(req.body.requesterUserId)
+      //   );
+      //   if (
+      //     doc.data().users.includes(req.body.providerUserId) &&
+      //     doc.data().users.includes(req.body.requesterUserId)
+      //   ) {
+      //     res.status(200).send(doc.id);
+      //     return;
+      //   } else {
+      //     if (isExistChatRoom.size === 1) {
+      //       const newChatRoom = await db.collection("chats").add({
+      //         lastMessage: [
+      //           {
+      //             userId: req.body.requesterUserId,
+      //           },
+      //           {
+      //             userId: req.body.providerUserId,
+      //           },
+      //         ],
+      //         users: [req.body.requesterUserId, req.body.providerUserId],
+      //         createdAt: admin.firestore.Timestamp.now(),
+      //         createdBy: req.body.requesterUserId,
+      //         dataStatus: 0,
+      //       });
+      //       res.status(200).send(newChatRoom.id);
+      //     } else if (index === isExistChatRoom.size - 1) {
+      //       {
+      //         console.log("2");
+      //       }
+      //       const newChatRoom = await db.collection("chats").add({
+      //         lastMessage: [
+      //           {
+      //             userId: req.body.requesterUserId,
+      //           },
+      //           {
+      //             userId: req.body.providerUserId,
+      //           },
+      //         ],
+      //         users: [req.body.requesterUserId, req.body.providerUserId],
+      //         createdAt: admin.firestore.Timestamp.now(),
+      //         createdBy: req.body.requesterUserId,
+      //         dataStatus: 0,
+      //       });
+      //       res.status(200).send(newChatRoom.id);
+      //     }
+      // }
+      // });
+    }
   } catch (error) {
-    res.status(400).send(error.message);
+    return res.status(400).send(error.message);
   }
 };
 
 const addMessage = async (req, res, next) => {
   try {
-    const data = db.collection("chats");
-    await data.doc(req.params.id).collection("message").add({
-      sentAt: admin.firestore.FieldValue.serverTimestamp(),
-      sentBy: req.body.userId,
-      readStatus: 0,
-      messageText: req.body.messageText,
-    });
+    const data = db
+      .collection("chats")
+      .doc(req.params.id)
+      .collection("messages");
 
-    res.status(200).send("add message successfully");
+    const lastMessage = await db
+      .collection("chats")
+      .doc(req.params.id)
+      .collection("messages")
+      .orderBy("createdAt", "desc")
+      .limit(1)
+      .get();
+
+    return data
+      .add({
+        createdBy: req.body.senderUserId,
+        createdAt: admin.firestore.Timestamp.now(),
+        readStatus: [
+          {
+            userId: req.body.senderUserId,
+            readAt: admin.firestore.Timestamp.now(),
+            readStatus: 1,
+          },
+          {
+            userId: req.body.receiverUserId,
+            readStatus: 0,
+          },
+        ],
+        messageText: req.body.messageText,
+      })
+      .then(async (result) => {
+        await db
+          .collection("chats")
+          .doc(req.params.id)
+          .update({
+            lastMessage: admin.firestore.FieldValue.arrayRemove({
+              userId: req.body.senderUserId,
+              lastMessageId:
+                lastMessage.size > 0 ? lastMessage?.docs[0].id : undefined,
+            }),
+          });
+
+        await db
+          .collection("chats")
+          .doc(req.params.id)
+          .update({
+            lastMessage: admin.firestore.FieldValue.arrayUnion({
+              userId: req.body.senderUserId,
+              lastMessageId: result.id,
+            }),
+          });
+
+        await db.collection("chats").doc(req.params.id).update({
+          modifiedAt: admin.firestore.Timestamp.now(),
+          modifiedBy: req.body.senderUserId,
+        });
+
+        return data.orderBy("createdAt").get();
+      })
+      .then(function (result) {
+        const entities = [];
+
+        result.docs.map((doc) => {
+          const messageText = new Message(
+            doc.id,
+            doc.data().readStatus,
+            doc.data().messageText,
+            new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
+            doc.data().createdBy
+          );
+          entities.push(messageText);
+        });
+        res.status(200).send(entities);
+      })
+      .catch((error) => {
+        res.status(400).send(error.message);
+      });
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -126,17 +297,46 @@ const updateReadStatus = async (req, res, next) => {
 
     const myUnreadMessage = await data
       .doc(req.params.id)
-      .collection("message")
-      .where("readStatus", "==", 0)
-      .where("sentBy", "==", req.body.userId)
+      .collection("messages")
+      .where("readStatus", "array-contains", {
+        readStatus: 0,
+        userId: req.body.senderUserId,
+      })
       .get();
 
-    myUnreadMessage.forEach((doc) => {
-      doc.ref.update({
-        readStatus: 1,
-      });
-    });
-    res.status(200).send("update read status successfully");
+    if (myUnreadMessage.empty) {
+      res.status(200).send("No unread messages");
+    } else {
+      await Promise.all(
+        myUnreadMessage.docs.map(async (doc) => {
+          await db
+            .collection("chats")
+            .doc(req.params.id)
+            .collection("messages")
+            .doc(doc.id)
+            .update({
+              readStatus: admin.firestore.FieldValue.arrayRemove({
+                readStatus: 0,
+                userId: req.body.senderUserId,
+              }),
+            });
+
+          await db
+            .collection("chats")
+            .doc(req.params.id)
+            .collection("messages")
+            .doc(doc.id)
+            .update({
+              readStatus: admin.firestore.FieldValue.arrayUnion({
+                readStatus: 1,
+                readAt: admin.firestore.Timestamp.now(),
+                userId: req.body.senderUserId,
+              }),
+            });
+        })
+      );
+      res.status(200).send("update read status successfully");
+    }
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -163,7 +363,7 @@ const updateLastMessage = async (req, res, next) => {
           .update({
             user: admin.firestore.FieldValue.arrayRemove({
               userId: req.body.userId,
-              lastMessageId: lastMessagePrev,
+              lastMessageId: lastMessagePrev ?? undefined,
             }),
           });
         const lastMessage = await db
@@ -182,36 +382,16 @@ const updateLastMessage = async (req, res, next) => {
               lastMessageId: lastMessage.docs[0].id,
             }),
           });
+
+        await data.doc(req.params.id).update({
+          modifiedAt: admin.firestore.Timestamp.now(),
+          modifiedBy: req.body.userId,
+        });
         res.status(200).send("update last message");
       })
       .catch((error) => {
         res.status(400).send(error.message);
       });
-
-    // await data
-    //   .doc(req.params.id)
-    //   .collection("message")
-    //   .doc(req.params.messageId)
-    //   .add({
-    //     sentAt: moment().toISOString(),
-    //     sentBy: req.body.userId,
-    //     readStatus: 1,
-    //     messageText: req.body.messageText,
-    //   });
-
-    // const lastMessage = await data
-    //   .doc(req.params.id)
-    //   .collection("message")
-    //   .orderBy("sentAt", "desc")
-    //   .limit(1)
-    //   .get();
-
-    // await data.doc(req.params.id).update({
-    //   user: admin.firestore.FieldValue.arrayUnion({
-    //     userId: req.body.userId,
-    //     lastMessageId: lastMessage.docs[0].id,
-    //   }),
-    // });
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -220,7 +400,7 @@ const updateLastMessage = async (req, res, next) => {
 const deletedChatRoom = async (req, res, next) => {
   try {
     await db.collection(req.params.id).update({
-      deletedAt: moment().toISOString(),
+      deletedAt: admin.firestore.Timestamp.now(),
       deletedBy: req.params.userId,
       dataStatus: 1,
     });
@@ -230,6 +410,7 @@ const deletedChatRoom = async (req, res, next) => {
 };
 
 module.exports = {
+  getUserChatRooms,
   getChatRoom,
   addChatRoom,
   addMessage,

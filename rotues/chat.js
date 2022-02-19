@@ -1,5 +1,6 @@
 const express = require("express");
 const {
+  getUserChatRooms,
   getChatRoom,
   addChatRoom,
   addMessage,
@@ -10,13 +11,14 @@ const {
 
 const router = express.Router();
 
+router.get("/user/:userId", getUserChatRooms);
 router.get("/:id", getChatRoom);
 
 router.post("/", addChatRoom);
-router.post("/message/:id", addMessage);
+router.post("/:id/message", addMessage);
 
 router.put("/last/:id", updateLastMessage);
-router.put("/read/:id", updateReadStatus);
+router.put("/:id/read/status", updateReadStatus);
 router.put("/delete/:id", deletedChatRoom);
 
 module.exports = {

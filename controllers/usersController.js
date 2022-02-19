@@ -3,9 +3,15 @@ const User = require("../models/user");
 const moment = require("moment");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
+const fs = require("fs");
 
 const storage = admin.storage();
 const bucket = storage.bucket();
+
+let fields = {};
+const BusBoy = require("busboy");
+const path = require("path");
+const os = require("os");
 
 const verifyToken = async (req, res, next) => {
   try {
@@ -49,30 +55,36 @@ const signin = async (req, res, next) => {
 // add new user after verified
 const addUsers = async (req, res, next) => {
   try {
-    await db.collection("users").doc(req.body.userId).set({
-      loginType: req.body.loginType,
-      username: req.body.username,
-      email: req.body.email,
-      verifiedEmailStatus: 1,
-      location: req.body.location,
-      imageUrl: req.body.imageUrl,
-      address: req.body.address,
-      phoneNumber: req.body.phoneNumber,
-      recommend: 0,
-      rank: "classic",
-      rating: 0,
-      category: req.body.category,
-      requestSum: 0,
-      provideSum: 0,
-      followerUserId: 0,
-      followingUserId: 0,
-      // provideId: 0,
-      // requestId: 0,
-      createAt: moment().toISOString(),
-      createdBy: req.body.userId,
-      dataStatus: 0,
-    });
-    res.status(200).send("User created");
+    await db
+      .collection("users")
+      .doc(req.body.userId)
+      .set({
+        loginType: req.body.loginType,
+        username: req.body.username,
+        email: req.body.email,
+        verifiedEmailStatus: 1,
+        location: req.body.location,
+        imageUrl: req.body.imageUrl,
+        address: req.body.address,
+        phoneNumber: req.body.phoneNumber,
+        recommend: 0,
+        rank: "classic",
+        rating: 0,
+        category: req.body.category,
+        requestSum: 0,
+        provideSum: 0,
+        followerUserId: 0,
+        followingUserId: 0,
+        createdAt: admin.firestore.Timestamp.now(),
+        createdBy: req.body.userId,
+        dataStatus: 0,
+      })
+      .then(async (res) => {
+        return await db.collection("users").doc(req.body.userId).get();
+      })
+      .then((result) => {
+        res.status(200).send({ userId: result.id, ...result.data() });
+      });
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -82,12 +94,19 @@ const addUsers = async (req, res, next) => {
 const updateUserData = async (req, res, next) => {
   try {
     const document = db.collection("users").doc(req.params.id);
-    await document.update({
-      ...req.body,
-      modifiedAt: moment().toISOString(),
-      modifiedBy: req.body.userId,
-    });
-    res.status(200).send("User update");
+    document
+      .update({
+        ...req.body,
+        modifiedAt: admin.firestore.Timestamp.now(),
+        modifiedBy: req.body.userId,
+      })
+      .then(async () => {
+        const data = await db.collection("users").doc(req.params.id).get();
+        res.status(200).send({ userId: req.params.id, ...data.data() });
+      })
+      .catch((error) => {
+        res.status(400).send(error.message);
+      });
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -137,7 +156,7 @@ const deleteUser = async (req, res, next) => {
   try {
     const document = db.collection("users").doc(req.params.id);
     await document.update({
-      deletedAt: moment().toISOString(),
+      deletedAt: admin.firestore.Timestamp.now(),
       deletedBy: req.params.id,
       dataStatus: 1,
     });
@@ -179,8 +198,9 @@ const getUsers = async (req, res, next) => {
           doc.data().provideId,
           doc.data().requestId,
           doc.data().createdBy,
+          new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
           doc.data().createdAt,
-          doc.data().modifiedAt,
+          new Date(doc.data().modifiedAt._seconds * 1000).toUTCString(),
           doc.data().modifiedBy,
           doc.data().deletedAt,
           doc.data().deletedBy
@@ -201,7 +221,7 @@ const updateUserVerificationEmailStatus = async (req, res, next) => {
     const document = db.collection("users").doc(req.params.id);
     await document.update({
       verifiedEmailStatus: req.body.verifiedEmailStatus,
-      modifiedAt: moment().toISOString(),
+      modifiedAt: admin.firestore.Timestamp.now(),
       modifiedBy: req.body.userId,
     });
     res.status(200).send("verification email status has been update");
@@ -290,6 +310,7 @@ const sendVerificationEmail = async (req, res, next) => {
 const getUser = async (req, res, next) => {
   try {
     const data = await db.collection("users").doc(req.params.id).get();
+
     // console.log(data.data().username);
     // console.log(data.docs[0]);
     // const user = new User(
@@ -319,7 +340,7 @@ const getUser = async (req, res, next) => {
       res.status(200).send({ userId: data.id, ...data.data() });
       // res.status(200).send(user);
     } else {
-      res.status(404).send("No user found");
+      res.status(200).send({});
     }
   } catch (error) {
     res.status(400).send(error.message);
@@ -327,33 +348,85 @@ const getUser = async (req, res, next) => {
 };
 
 const uploadImage = async (req, res, next) => {
-  const folder = "users";
-  const fileName = `${folder}/${Date.now()}`;
-  const fileUpload = bucket.file(fileName);
-  const blobStream = fileUpload.createWriteStream({
-    metadata: {
-      contentType: "image/jpeg",
-    },
+  const busboy = new BusBoy({ headers: req.headers });
+
+  let imageFileName = {};
+  let imagesToUpload = [];
+  let imageToAdd = {};
+  let imageUrls = [];
+
+  busboy.on("field", (fieldname, fieldvalue) => {
+    fields[fieldname] = fieldvalue;
   });
 
-  blobStream.on("error", (err) => {
-    res.status(405).json(err);
+  busboy.on("file", (fieldname, file, filename, encoding, mimetype) => {
+    if (mimetype !== "image/jpeg" && mimetype !== "image/png") {
+      return res.status(400).json({ error: "Wrong file type submitted!" });
+    }
+
+    // Getting extension of any image
+    const imageExtension = filename.split(".")[filename.split(".").length - 1];
+
+    // Setting filename
+    imageFileName = `${Math.round(
+      Math.random() * 1000000000
+    )}.${imageExtension}`;
+
+    // Creating path
+    const filepath = path.join(os.tmpdir(), imageFileName);
+    imageToAdd = {
+      imageFileName,
+      filepath,
+      mimetype,
+    };
+
+    file.pipe(fs.createWriteStream(filepath));
+    //Add the image to the array
+    imagesToUpload.push(imageToAdd);
   });
 
-  blobStream.on("finish", () => {
-    // console.log(res);
-    bucket
-      .file(fileName)
-      .getSignedUrl({
-        action: "read",
-        expires: "03-09-2491",
-      })
-      .then((signedUrls) => {
-        res.status(200).send(signedUrls[0]);
+  busboy.on("finish", async () => {
+    let promises = [];
+
+    imagesToUpload.forEach((imageToBeUploaded) => {
+      imageUrls.push(
+        `https://firebasestorage.googleapis.com/v0/b/senior-project-97cfa.appspot.com/o/${imageToBeUploaded.imageFileName}?alt=media`
+      );
+      promises.push(
+        admin
+          .storage()
+          .bucket()
+          .upload(`${imageToBeUploaded.filepath}`, {
+            destination: `users/${imageFileName}`,
+            resumable: false,
+            metadata: {
+              metadata: {
+                contentType: imageToBeUploaded.mimetype,
+              },
+            },
+          })
+      );
+    });
+
+    try {
+      await Promise.all(promises).then(() => {
+        bucket
+          .file(`users/${imageFileName}`)
+          .getSignedUrl({
+            action: "read",
+            expires: "03-09-2491",
+          })
+          .then((signedUrls) => {
+            res.status(200).send(signedUrls[0]);
+          });
       });
+    } catch (err) {
+      console.log(err);
+      res.status(500).json(err);
+    }
   });
 
-  blobStream.end(req.file.buffer);
+  busboy.end(req.rawBody);
 };
 
 const getImage = async (req, res, next) => {

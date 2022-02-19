@@ -1,6 +1,7 @@
 class Order {
   constructor(
     id,
+    chatId,
     orderReferenceType,
     orderReferenceId,
     title,
@@ -24,6 +25,7 @@ class Order {
     dataStatus
   ) {
     this.id = id;
+    this.chatId = chatId;
     this.orderReferenceType = orderReferenceType;
     this.orderReferenceId = orderReferenceId;
     this.title = title;

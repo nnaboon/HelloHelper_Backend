@@ -46,7 +46,8 @@ class Member {
     leavedAt
   ) {
     this.id = id;
-    (this.userId = userId), (this.status = status);
+    this.userId = userId;
+    this.status = status;
     this.role = role;
     this.requestSum = requestSum;
     this.provideSum = provideSum;
