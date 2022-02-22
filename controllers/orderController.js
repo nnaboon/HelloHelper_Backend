@@ -205,14 +205,24 @@ const getMyProvideOrders = async (req, res, next) => {
 
 const addOrder = async (req, res, next) => {
   try {
-    await db.collection("orders").add({
-      ...req.body,
-      status: "waiting",
-      createdAt: admin.firestore.Timestamp.now(),
-      createdBy: req.body.requesterUserId,
-      dataStatus: 0,
-    });
-    res.status(200).send("add order successfully");
+    await db
+      .collection("orders")
+      .add({
+        ...req.body,
+        status: "waiting",
+        createdAt: admin.firestore.Timestamp.now(),
+        createdBy: req.body.requesterUserId,
+        dataStatus: 0,
+      })
+      .then((result) => {
+        return result.get();
+      })
+      .then(async (result) => {
+        return res.status(200).send({
+          id: result.id,
+          ...result.data(),
+        });
+      });
   } catch (error) {
     res.status(400).send(error.message);
   }
