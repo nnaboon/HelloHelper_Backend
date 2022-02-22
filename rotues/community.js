@@ -18,6 +18,7 @@ const {
   getCommunityProvide,
   uploadImage,
   getImage,
+  leaveCommunity,
 } = require("../controllers/communityController");
 const express = require("express");
 

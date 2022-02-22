@@ -575,32 +575,63 @@ const updateMemberRole = async (req, res, next) => {
 
 const bannedMember = async (req, res, next) => {
   try {
-    await db
+    const data = await db
       .collection("communities")
       .doc(req.params.communityId)
       .collection("members")
       .doc(req.params.memberId)
-      .update({
-        status: 1,
-        deletedAt: admin.firestore.Timestamp.now(),
-        deletedBy: req.body.communityAdminUserId,
-        dataStatus: 1,
-      })
-      .then(async (result) => {
-        return db
-          .collection("communities")
-          .doc(req.params.communityId)
-          .collection("members")
-          .where("status", "==", 0)
-          .get();
-      })
-      .then((result) => {
-        const entities = [];
-        result.forEach((doc) => {
-          entities.push({ id: doc.id, ...doc.data() });
+      .get();
+
+    const admin = await data
+      .doc(req.params.communityId)
+      .collection("members")
+      .where("role", "==", 1)
+      .get();
+
+    if (admin.size >= 3 && req.body.role == 1) {
+      res.status(404).send("Sorry maximum admin role is 3");
+    } else if (admin.size == 1 && data.data().role == 1) {
+      res.status(404).send("Sorry admin role must be at less 1");
+    } else {
+      return await db
+        .collection("communities")
+        .doc(req.params.communityId)
+        .collection("members")
+        .doc(req.params.memberId)
+        .update({
+          status: 1,
+          deletedAt: admin.firestore.Timestamp.now(),
+          deletedBy: req.body.communityAdminUserId,
+          dataStatus: 1,
+        })
+        .then(async (result) => {
+          const user = await db
+            .collection("users")
+            .doc(data.data().userId)
+            .get();
+          await db
+            .collection("users")
+            .doc(data.data().userId)
+            .update({
+              communityId: user
+                .data()
+                .communityId.filter((items) => items != req.params.communityId),
+            });
+          return db
+            .collection("communities")
+            .doc(req.params.communityId)
+            .collection("members")
+            .where("status", "==", 0)
+            .get();
+        })
+        .then((result) => {
+          const entities = [];
+          result.forEach((doc) => {
+            entities.push({ id: doc.id, ...doc.data() });
+          });
+          res.status(200).send(entities);
         });
-        res.status(200).send(entities);
-      });
+    }
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -1080,6 +1111,13 @@ const getCommunityJoinedRequest = async (req, res, next) => {
   }
 };
 
+const leaveCommunity = async (req, res, next) => {
+  try {
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
 module.exports = {
   getCommunities,
   getCommunity,
@@ -1098,4 +1136,5 @@ module.exports = {
   getCommunityProvide,
   uploadImage,
   getImage,
+  leaveCommunity,
 };
