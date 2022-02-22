@@ -37,12 +37,12 @@ router.get("/user/:userId", getMyCommunity);
 router.get("/:id/request", getCommunityRequest);
 router.get("/:id/provide", getCommunityProvide);
 router.get("image/:id", getImage);
+router.get("/:id/join", getCommunityJoinedRequest);
 
 router.post("/", addCommunity);
 router.post("/:id/member", addMember);
 router.post("/join", addJoinedCommunityRequest);
 router.post("/upload", multer.single("img"), uploadImage);
-router.get("/:id/join", getCommunityJoinedRequest);
 
 router.put("/:id", updateCommunity);
 router.put("/:communityId/member/:memberId", updateMemberRole);

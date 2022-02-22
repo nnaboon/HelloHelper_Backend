@@ -13,8 +13,8 @@ class Provide {
     communityId,
     category,
     hashtag,
-    requesterUserId,
     visibility,
+    requesterUserId,
     createdAt,
     createdBy,
     modifiedAt,
@@ -36,8 +36,8 @@ class Provide {
     this.communityId = communityId;
     this.category = category;
     this.hashtag = hashtag;
-    this.requesterUserId = requesterUserId;
     this.visibility = visibility;
+    this.requesterUserId = requesterUserId;
     this.createdAt = createdAt;
     this.createdBy = createdBy;
     this.modifiedAt = modifiedAt;

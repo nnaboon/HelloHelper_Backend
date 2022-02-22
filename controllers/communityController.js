@@ -52,6 +52,7 @@ const getCommunities = async (req, res, next) => {
             .collection("communities")
             .doc(id)
             .collection("members")
+            .where("status", "==", 0)
             .get();
 
           if (members.empty) {
@@ -121,7 +122,9 @@ const getCommunity = async (req, res, next) => {
       .collection("communities")
       .doc(req.params.id)
       .collection("members")
+      .where("status", "==", 0)
       .get();
+
     const joinedRequest = await db
       .collection("communities")
       .doc(req.params.id)
@@ -284,6 +287,7 @@ const getCommunityRequest = async (req, res, next) => {
     const request = db.collection("requests");
     const allCommunityRequest = await request
       .where("communityId", "==", req.params.id)
+      .where("visibility", "==", 1)
       .get();
 
     const entities = [];
@@ -383,6 +387,7 @@ const getCommunityProvide = async (req, res, next) => {
     const provide = db.collection("provides");
     const allCommunityProvide = await provide
       .where("communityId", "==", req.params.id)
+      .where("visibility", "==", 1)
       .get();
     const entities = [];
 
@@ -558,11 +563,11 @@ const updateMemberRole = async (req, res, next) => {
         .doc(req.params.memberId)
         .update({
           role: req.body.role,
-          modifiedAt: admin.firestore.Timestamp.now(),
+          // modifiedAt: admin.firestore.Timestamp.now(),
           modifiedBy: req.body.communityAdminUserId,
         });
+      res.status(200).send("updated member successfully");
     }
-    res.status(200).send("updated member successfully");
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -580,9 +585,40 @@ const bannedMember = async (req, res, next) => {
         deletedAt: admin.firestore.Timestamp.now(),
         deletedBy: req.body.communityAdminUserId,
         dataStatus: 1,
+      })
+      .then(async (result) => {
+        return db
+          .collection("communities")
+          .doc(req.params.communityId)
+          .collection("members")
+          .where("status", "==", 0)
+          .get();
+      })
+      .then((result) => {
+        const entities = [];
+        result.forEach((doc) => {
+          entities.push({ id: doc.id, ...doc.data() });
+        });
+        res.status(200).send(entities);
       });
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
 
-    res.status(200).send("banned member successfully");
+const leavegroup = async (req, res, next) => {
+  try {
+    await db
+      .collection("communities")
+      .doc(req.params.communityId)
+      .collection("members")
+      .doc(req.params.memberId)
+      .update({
+        status: 1,
+        deletedAt: admin.firestore.Timestamp.now(),
+        deletedBy: req.body.communityAdminUserId,
+        dataStatus: 1,
+      });
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -907,9 +943,17 @@ const getImage = async (req, res, next) => {
 const getCommunityMember = async (req, res, next) => {
   try {
     const entities = [];
+    // const data = await db
+    //   .collection("users")
+    //   .where("communityId", "array-contains", req.params.id)
+    //   .get();
+
     const data = await db
-      .collection("users")
-      .where("communityId", "array-contains", req.params.id)
+      .collection("communities")
+      .doc(req.params.id)
+      .collection("members")
+      // .where("userId", "==", doc.id)
+      .where("status", "==", 0)
       .get();
 
     if (data.empty) {
@@ -917,40 +961,54 @@ const getCommunityMember = async (req, res, next) => {
     } else {
       await Promise.all(
         data.docs.map(async (doc) => {
-          const community = await db
-            .collection("communities")
-            .doc(req.params.id)
-            .collection("members")
-            .where("userId", "==", doc.id)
-            .get();
+          // const community = await db
+          //   .collection("communities")
+          //   .doc(req.params.id)
+          //   .collection("members")
+          //   // .where("userId", "==", doc.id)
+          //   .where("status", "==", 0)
+          //   .get();
 
-          const user = new User(
-            doc.id,
-            doc.data().loginType,
-            doc.data().username,
-            doc.data().email,
-            doc.data().verifiedEmailStatus,
-            doc.data().location,
-            doc.data().imageUrl,
-            doc.data().address,
-            doc.data().phoneNumber,
-            doc.data().recommend,
-            doc.data().rank,
-            doc.data().rating,
-            doc.data().communityId,
-            doc.data().category,
-            doc.data().requestSum,
-            doc.data().provideSum,
-            doc.data().followerUserId,
-            doc.data().followingUserId,
-            doc.data().provideId,
-            doc.data().requestId
-          );
-          entities.push(
-            Object.assign(user, { role: community.docs[0].data().role })
-          );
+          const member = await db
+            .collection("users")
+            .doc(doc.data().userId)
+            .get();
+          // console.log(community);
+
+          // const user = new User(
+          //   doc.id,
+          //   doc.data().loginType,
+          //   doc.data().username,
+          //   doc.data().email,
+          //   doc.data().verifiedEmailStatus,
+          //   doc.data().location,
+          //   doc.data().imageUrl,
+          //   doc.data().address,
+          //   doc.data().phoneNumber,
+          //   doc.data().recommend,
+          //   doc.data().rank,
+          //   doc.data().rating,
+          //   doc.data().communityId,
+          //   doc.data().category,
+          //   doc.data().requestSum,
+          //   doc.data().provideSum,
+          //   doc.data().followerUserId,
+          //   doc.data().followingUserId,
+          //   doc.data().provideId,
+          //   doc.data().requestId
+          // );
+
+          entities.push(doc.id, doc.data(), ...member.data());
+          // entities.push(
+          //   Object.assign(user, {
+          //     memberId: community.docs[0].id,
+          //     role: community.docs[0].data().role,
+          //   })
+          //   // Object.assign(user, { role: community.})
+          // );
         })
       );
+
       res.status(200).send(entities);
     }
   } catch (error) {

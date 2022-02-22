@@ -50,7 +50,6 @@ const getRequests = async (req, res, next) => {
             doc.data().communityId,
             doc.data().category,
             doc.data().hashtag,
-            doc.data().provideSum,
             doc.data().visibility
           );
 
@@ -251,64 +250,75 @@ const getMyRequest = async (req, res, next) => {
               doc.data().communityId,
               doc.data().category,
               doc.data().hashtag,
-              doc.data().provideSum,
               doc.data().visibility
             );
 
-            // const requesterUserEntities = [];
-            // const providedUserEntities = [];
+            const requesterUserEntities = [];
+            const providedUserEntities = [];
 
-            // const requesterUserId = await db
-            //   .collection("requests")
-            //   .doc(id)
-            //   .collection("requesterUserId")
-            //   .get();
+            const requesterUserId = await db
+              .collection("requests")
+              .doc(id)
+              .collection("requesterUserId")
+              .get();
 
-            // requesterUserId.forEach((doc) => {
-            //   const requesterUser = new RequesterUserId(
-            //     doc.data().userId,
-            //     new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
-            //     doc.data().createdBy,
-            //     new Date(doc.data().modifiedAt._seconds * 1000).toUTCString(),
-            //     doc.data().modifiedBy,
-            //     doc.data().deletedAt
-            //       ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
-            //       : undefined,
-            //     doc.data().deletedBy,
-            //     doc.data().dataStatus
-            //   );
-            //   requesterUserEntities.push(requesterUser);
-            // });
+            requesterUserId.forEach((doc) => {
+              const requesterUser = new RequesterUserId(
+                doc.data().userId,
+                doc.data().createdAt
+                  ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+                  : undefined,
+                doc.data().createdBy,
+                doc.data().modifiedAt
+                  ? new Date(
+                      doc.data().modifiedAt._seconds * 1000
+                    ).toUTCString()
+                  : undefined,
+                doc.data().modifiedBy,
+                doc.data().deletedAt
+                  ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+                  : undefined,
+                doc.data().deletedBy,
+                doc.data().dataStatus
+              );
+              requesterUserEntities.push(requesterUser);
+            });
 
-            // Object.assign(request, {
-            //   requesterUserId: requesterUserEntities,
-            // });
+            Object.assign(request, {
+              requesterUserId: requesterUserEntities,
+            });
 
-            // const providedUserId = await db
-            //   .collection("requests")
-            //   .doc(id)
-            //   .collection("providedUserId")
-            //   .get();
+            const providedUserId = await db
+              .collection("requests")
+              .doc(id)
+              .collection("providedUserId")
+              .get();
 
-            // providedUserId.forEach((doc) => {
-            //   const providedUser = new ProvidedUserId(
-            //     doc.data().userId,
-            //     doc.data().status,
-            //     new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
-            //     doc.data().createdBy,
-            //     new Date(doc.data().modifiedAt._seconds * 1000).toUTCString(),
-            //     doc.data().modifiedBy,
-            //     doc.data().deletedAt
-            //       ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
-            //       : undefined,
-            //     doc.data().deletedBy,
-            //     doc.data().dataStatus
-            //   );
-            //   providedUserEntities.push(providedUser);
-            // });
-            // Object.assign(request, {
-            //   providedUserId: providedUserEntities,
-            // });
+            providedUserId.forEach((doc) => {
+              const providedUser = new ProvidedUserId(
+                doc.data().userId,
+                doc.data().status,
+                doc.data().createdAt
+                  ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+                  : undefined,
+                doc.data().createdBy,
+                doc.data().modifiedAt
+                  ? new Date(
+                      doc.data().modifiedAt._seconds * 1000
+                    ).toUTCString()
+                  : undefined,
+                doc.data().modifiedBy,
+                doc.data().deletedAt
+                  ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+                  : undefined,
+                doc.data().deletedBy,
+                doc.data().dataStatus
+              );
+              providedUserEntities.push(providedUser);
+            });
+            Object.assign(request, {
+              providedUserId: providedUserEntities,
+            });
             entities.push(request);
           }
         })
@@ -322,41 +332,61 @@ const getMyRequest = async (req, res, next) => {
 
 const addRequest = async (req, res, next) => {
   try {
-    db.collection("requests").add({
-      ...req.body,
-      visibility: 1,
-      createdAt: admin.firestore.Timestamp.now(),
-      createdBy: req.body.userId,
-      modifiedAt: admin.firestore.Timestamp.now(),
-      modifiedBy: req.body.userId,
-      dataStatus: 0,
-    });
+    db.collection("requests")
+      .add({
+        ...req.body,
+        visibility: 1,
+        createdAt: admin.firestore.Timestamp.now(),
+        createdBy: req.body.userId,
+        modifiedAt: admin.firestore.Timestamp.now(),
+        modifiedBy: req.body.userId,
+        dataStatus: 0,
+      })
+      .then(async (result) => {
+        const user = await db
+          .collection("users")
+          .where("category", "array-contains", ...req.body.category)
+          .get();
 
-    const user = await db
-      .collection("users")
-      .where("category", "array-contains", ...req.body.category)
-      .get();
-
-    user.forEach((doc) => {
-      if (doc.data().userId !== req.body.userId) {
-        let authData = nodemailer.createTransport({
-          host: "smtp.gmail.com",
-          port: 465,
-          secure: true,
-          auth: {
-            user: "srisawasdina@gmail.com",
-            pass: "na21122542",
+        user.forEach((doc) => {
+          if (doc.data().userId !== req.body.userId) {
+            let authData = nodemailer.createTransport({
+              host: "smtp.gmail.com",
+              port: 465,
+              secure: true,
+              auth: {
+                user: "srisawasdina@gmail.com",
+                pass: "na21122542",
+              },
+            });
+            authData.sendMail({
+              from: "Hello Helper<accounts@franciscoinoque.tech>",
+              to: doc.data().email,
+              subject: "มีคนต้องการความช่วยเหลือ",
+              html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />ลองเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
+            });
+          }
+        });
+        return result.get();
+      })
+      .then(async (result) => {
+        const user = await db
+          .collection("users")
+          .doc(result.data().userId)
+          .get();
+        return res.status(200).send({
+          id: result.id,
+          ...result.data(),
+          user: {
+            imageUrl: user.data().imageUrl,
+            recommend: user.data().recommend,
+            rank: user.data().rank,
+            username: user.data().username,
+            email: user.data().email,
+            rating: user.data().rating,
           },
         });
-        authData.sendMail({
-          from: "Hello Helper<accounts@franciscoinoque.tech>",
-          to: doc.data().email,
-          subject: "มีคนต้องการความช่วยเหลือ",
-          html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />ลองเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
-        });
-      }
-    });
-    res.status(200).send("request created successfully");
+      });
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -469,8 +499,97 @@ const updateProvidedStatus = async (req, res, next) => {
 const updatedRequest = async (req, res, next) => {
   try {
     const data = db.collection("requests").doc(req.params.id);
-    await data.update(req.body);
-    res.status(200).send("updated successfully");
+    return await data
+      .update({
+        ...req.body,
+        modifiedAt: admin.firestore.Timestamp.now(),
+        modifiedBy: req.body.userId,
+      })
+      .then(() => {
+        return data.get();
+      })
+      .then(async (data) => {
+        const id = data.id;
+        const entities = [];
+        const requesterUserEntities = [];
+        const providedUserEntities = [];
+        const requesterUserId = await db
+          .collection("requests")
+          .doc(id)
+          .collection("requesterUserId")
+          .get();
+        const providedUserId = await db
+          .collection("requests")
+          .doc(id)
+          .collection("providedUserId")
+          .get();
+
+        if (data.empty || data.data().dataStatus == 1) {
+          res.status(404).send("Data not found");
+        } else {
+          entities.push({ requestId: id, ...data.data() });
+          await Promise.all(
+            requesterUserId.docs.map(async (doc) => {
+              const user = await db
+                .collection("users")
+                .doc(doc.data().userId)
+                .get();
+              const requesterUser = new RequesterUserId(
+                doc.data().userId,
+                doc.data().createdAt
+                  ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+                  : undefined,
+                doc.data().createdBy,
+                doc.data().modifiedAt
+                  ? new Date(
+                      doc.data().modifiedAt._seconds * 1000
+                    ).toUTCString()
+                  : undefined,
+                doc.data().modifiedBy,
+                doc.data().deletedAt
+                  ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+                  : undefined,
+                doc.data().deletedBy,
+                doc.data().dataStatus
+              );
+              requesterUserEntities.push({
+                ...requesterUser,
+                username: user.data().username,
+                imageUrl: user.data().imageUrl,
+                recommend: user.data().recommend,
+              });
+            })
+          );
+          Object.assign(...entities, {
+            requesterUserId: requesterUserEntities,
+          });
+
+          providedUserId.forEach((doc) => {
+            const providedUser = new ProvidedUserId(
+              doc.data().userId,
+              doc.data().status,
+              doc.data().createdAt
+                ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+                : undefined,
+              doc.data().createdBy,
+              doc.data().modifiedAt
+                ? new Date(doc.data().modifiedAt._seconds * 1000).toUTCString()
+                : undefined,
+              doc.data().modifiedBy,
+              doc.data().deletedAt
+                ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+                : undefined,
+              doc.data().deletedBy,
+              doc.data().dataStatus
+            );
+            providedUserEntities.push(providedUser);
+          });
+          Object.assign(...entities, {
+            providedUserId: providedUserEntities,
+          });
+          res.status(200).send(...entities);
+        }
+      });
   } catch (error) {
     res.status(400).send(error.message);
   }

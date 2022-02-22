@@ -5,6 +5,7 @@ const {
   getProvides,
   getMyProvide,
   getProvide,
+  getProvidesRanking,
   addProvide,
   updatedProvide,
   deletedProvide,
@@ -29,6 +30,7 @@ router.get("/", getProvides);
 router.get("/:id", getProvide);
 router.get("/user/:userId", getMyProvide);
 router.get("/:id/image", getImage);
+router.get("/:userId/rank", getProvidesRanking);
 router.get("/search/:category", searchProvide);
 
 router.post("/", addProvide);

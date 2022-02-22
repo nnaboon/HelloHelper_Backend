@@ -28,10 +28,11 @@ class User {
 }
 
 class Message {
-  constructor(id, readStatus, messageText, createdAt, createdBy) {
+  constructor(id, readStatus, messageText, media, createdAt, createdBy) {
     this.id = id;
     this.readStatus = readStatus;
     this.messageText = messageText;
+    this.media = media;
     this.createdAt = createdAt;
     this.createdBy = createdBy;
   }

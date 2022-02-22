@@ -353,6 +353,41 @@ const updateProvideSum = async (req, res, next) => {
             recommend: 1,
           });
         }
+
+        if (data.data().rating >= 4) {
+          switch (true) {
+            case data.data().provideSum > 0 && data.data().provideSum < 50:
+              await db
+                .collection("users")
+                .doc(req.body.providerUserId)
+                .update({ rank: "classic" });
+              break;
+            case data.data().provideSum >= 50 && data.data().provideSum < 100:
+              await db
+                .collection("users")
+                .doc(req.body.providerUserId)
+                .update({ rank: "silver" });
+              break;
+            case data.data().provideSum >= 100 && data.data().provideSum < 200:
+              await db
+                .collection("users")
+                .doc(req.body.providerUserId)
+                .update({ rank: "gold" });
+              break;
+            case data.data.provideSum >= 400 && data.data().rating >= 4.5:
+              await db
+                .collection("users")
+                .doc(req.body.providerUserId)
+                .update({ rank: "diamond" });
+              break;
+            case data.data.provideSum >= 500 && data.data().rating >= 4.5:
+              await db
+                .collection("users")
+                .doc(req.body.providerUserId)
+                .update({ rank: "platinum" });
+              break;
+          }
+        }
       });
 
     // update requester side
@@ -418,6 +453,42 @@ const updateRequestSum = async (req, res, next) => {
           await db.collection("users").doc(req.body.providerUserId).update({
             recommend: 1,
           });
+        }
+
+        if (data.data().rating >= 4) {
+          switch (true) {
+            case data.data().provideSum > 0 && data.data().provideSum < 50:
+              await db
+                .collection("users")
+                .doc(req.body.providerUserId)
+                .update({ rank: "classic" });
+              break;
+            case data.data().provideSum >= 50 && data.data().provideSum < 100:
+              await db
+                .collection("users")
+                .doc(req.body.providerUserId)
+                .update({ rank: "silver" });
+              break;
+            case data.data().provideSum >= 100 && data.data().provideSum < 200:
+              await db
+                .collection("users")
+                .doc(req.body.providerUserId)
+                .update({ rank: "gold" });
+              break;
+            case data.data.provideSum >= 400 && data.data().rating >= 4.5:
+              await db
+                .collection("users")
+                .doc(req.body.providerUserId)
+                .update({ rank: "diamond" });
+              break;
+
+            case data.data.provideSum >= 500 && data.data().rating >= 4.5:
+              await db
+                .collection("users")
+                .doc(req.body.providerUserId)
+                .update({ rank: "platinum" });
+              break;
+          }
         }
       });
     res.status(200).send("requestSum updated successfully");

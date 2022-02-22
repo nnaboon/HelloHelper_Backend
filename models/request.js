@@ -13,9 +13,9 @@ class Request {
     communityId,
     category,
     hashtag,
+    visibility,
     providedUserId,
     requesterUserId,
-    visibility,
     createdAt,
     createdBy,
     modifiedAt,
@@ -37,9 +37,9 @@ class Request {
     this.communityId = communityId;
     this.category = category;
     this.hashtag = hashtag;
+    this.visibility = visibility;
     this.providedUserId = providedUserId;
     this.requesterUserId = requesterUserId;
-    this.visibility = visibility;
     this.createdAt = createdAt;
     this.createdBy = createdBy;
     this.modifiedAt = modifiedAt;

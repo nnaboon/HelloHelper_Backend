@@ -310,35 +310,8 @@ const sendVerificationEmail = async (req, res, next) => {
 const getUser = async (req, res, next) => {
   try {
     const data = await db.collection("users").doc(req.params.id).get();
-
-    // console.log(data.data().username);
-    // console.log(data.docs[0]);
-    // const user = new User(
-    //   data.id,
-    //   data.data().loginType,
-    //   data.data().username,
-    //   data.data().email,
-    //   data.data().verifiedEmailStatus,
-    //   data.data().location,
-    //   data.data().imageUrl,
-    //   data.data().address,
-    //   data.data().phoneNumber,
-    //   data.data().recommend,
-    //   data.data().rank,
-    //   data.data().rating,
-    //   data.data().communityId,
-    //   data.data().category,
-    //   data.data().requestSum,
-    //   data.data().provideSum,
-    //   data.data().followerUserId,
-    //   data.data().followingUserId,
-    //   data.data().provideId,
-    //   data.data().requestId
-    // );
-
     if (data.exists) {
       res.status(200).send({ userId: data.id, ...data.data() });
-      // res.status(200).send(user);
     } else {
       res.status(200).send({});
     }

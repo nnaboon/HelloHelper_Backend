@@ -113,6 +113,7 @@ const getMyProvide = async (req, res, next) => {
       .get();
 
     const entities = [];
+    const map = {};
 
     if (data.empty) {
       res.status(200).send([]);
@@ -120,6 +121,7 @@ const getMyProvide = async (req, res, next) => {
       await Promise.all(
         data.docs.map(async (doc) => {
           const id = doc.id;
+
           const provide = new Provide(
             id,
             doc.data().title,
@@ -137,6 +139,10 @@ const getMyProvide = async (req, res, next) => {
             doc.data().visibility
           );
 
+          map[doc.data().category[0]] =
+            (Boolean(map[doc.data().category[0]])
+              ? map[doc.data().category[0]]
+              : 0) + doc.data().provideSum;
           // const requesterUserEntities = [];
           // const requesterUserId = await db
           //   .collection("provides")
@@ -172,7 +178,11 @@ const getMyProvide = async (req, res, next) => {
           entities.push(provide);
         })
       );
-      res.status(200).send(entities);
+      const sortable = Object.fromEntries(
+        Object.entries(map).sort(([, a], [, b]) => b - a)
+      );
+
+      res.status(200).send({ data: entities, rank: sortable });
     }
   } catch (err) {
     res.status(400).send(err.message);
@@ -230,6 +240,26 @@ const getProvide = async (req, res, next) => {
       });
     }
     res.status(200).send(...entities);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+const getProvidesRanking = async (req, res, next) => {
+  try {
+    const data = await db
+      .collection("provides")
+      .orderBy("provideSum")
+      .where("userId", "==", req.params.userId)
+      .where("dataStatus", "==", 0)
+      .get();
+
+    const entities = [];
+
+    data.forEach((doc) => {
+      entities.push({ id: doc.id, ...doc.data() });
+    });
+    res.status(200).send(entities);
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -296,16 +326,39 @@ const searchProvide = async (req, res, next) => {
 
 const addProvide = async (req, res, next) => {
   try {
-    const data = await db.collection("provides").add({
-      ...req.body,
-      visibility: 1,
-      createdAt: admin.firestore.Timestamp.now(),
-      createdBy: req.body.userId,
-      modifiedAt: admin.firestore.Timestamp.now(),
-      modifiedBy: req.body.userId,
-      dataStatus: 0,
-    });
-    res.status(200).send(data.id);
+    return await db
+      .collection("provides")
+      .add({
+        ...req.body,
+        visibility: 1,
+        createdAt: admin.firestore.Timestamp.now(),
+        createdBy: req.body.userId,
+        modifiedAt: admin.firestore.Timestamp.now(),
+        modifiedBy: req.body.userId,
+        dataStatus: 0,
+      })
+      .then((result) => {
+        return result.get();
+      })
+      .then(async (result) => {
+        const user = await db
+          .collection("users")
+          .doc(result.data().userId)
+          .get();
+
+        return res.status(200).send({
+          id: result.id,
+          ...result.data(),
+          user: {
+            imageUrl: user.data().imageUrl,
+            recommend: user.data().recommend,
+            rank: user.data().rank,
+            username: user.data().username,
+            email: user.data().email,
+            rating: user.data().rating,
+          },
+        });
+      });
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -334,12 +387,68 @@ const addRequesterUser = async (req, res, next) => {
 const updatedProvide = async (req, res, next) => {
   try {
     const data = db.collection("provides").doc(req.params.id);
-    await data.update({
-      ...req.body,
-      modifiedAt: admin.firestore.Timestamp.now(),
-      modifiedBy: req.body.userId,
-    });
-    res.status(200).send("updated successfully");
+    return await data
+      .update({
+        ...req.body,
+        modifiedAt: admin.firestore.Timestamp.now(),
+        modifiedBy: req.body.userId,
+      })
+      .then(() => {
+        return data.get();
+      })
+      .then(async (result) => {
+        const user = await db
+          .collection("users")
+          .doc(result.data().userId)
+          .get();
+        const requesterUserId = await db
+          .collection("provides")
+          .doc(req.params.id)
+          .collection("requesterUserId")
+          .get();
+
+        const entities = [];
+        const requesterUserEntities = [];
+
+        if (result.empty || result.data().dataStatus == 1) {
+          res.status(404).send("No user found");
+        } else {
+          requesterUserId.forEach(async (doc) => {
+            const requesterUser = new RequesterUserId(
+              doc.data().userId,
+              doc.data().status,
+              doc.data().createdAt
+                ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+                : undefined,
+              doc.data().createdBy,
+              doc.data().modifiedAt
+                ? new Date(doc.data().modifiedAt._seconds * 1000).toUTCString()
+                : undefined,
+              doc.data().modifiedBy,
+              doc.data().deletedAt
+                ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+                : undefined,
+              doc.data().deletedBy,
+              doc.data().dataStatus
+            );
+            requesterUserEntities.push(requesterUser);
+          });
+          entities.push({ provideId: req.params.id, ...result.data() });
+
+          Object.assign(...entities, {
+            requesterUserId: requesterUserEntities,
+            user: {
+              imageUrl: user.data().imageUrl,
+              recommend: user.data().recommend,
+              rank: user.data().rank,
+              username: user.data().username,
+              email: user.data().email,
+              rating: user.data().rating,
+            },
+          });
+        }
+        return res.status(200).send(...entities);
+      });
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -471,6 +580,7 @@ module.exports = {
   getProvides,
   getProvide,
   getMyProvide,
+  getProvidesRanking,
   searchProvide,
   addProvide,
   updatedProvide,
