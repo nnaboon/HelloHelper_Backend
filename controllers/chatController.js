@@ -76,16 +76,17 @@ const getChatRoom = async (req, res, next) => {
     const messages = [];
 
     const data = await db.collection("chats").doc(req.params.id).get();
+    const message = await db
+      .collection("chats")
+      .doc(req.params.id)
+      .collection("messages")
+      .orderBy("createdAt")
+      .get();
 
-    if (data.exist) {
-      const message = await db
-        .collection("chats")
-        .doc(req.params.id)
-        .collection("messages")
-        .orderBy("createdAt")
-        .get();
-
-      message.forEach((doc) => {
+    if (data.empty) {
+      res.status(200).send(entities);
+    } else {
+      message.docs.forEach((doc) => {
         const messageText = new Message(
           doc.id,
           doc.data().readStatus,
@@ -98,9 +99,11 @@ const getChatRoom = async (req, res, next) => {
         messages.push(messageText);
       });
 
-      entities.push({ chatId: data.id, ...data.data(), messages: messages });
-      res.status(200).send(entities);
-    } else {
+      entities.push({
+        chatId: data.id,
+        ...data.data(),
+        messages: messages,
+      });
       res.status(200).send(entities);
     }
   } catch (error) {
@@ -309,6 +312,7 @@ const updateReadStatus = async (req, res, next) => {
       })
       .get();
 
+    console.log(myUnreadMessage.empty);
     if (myUnreadMessage.empty) {
       res.status(200).send("No unread messages");
     } else {
