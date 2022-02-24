@@ -52,7 +52,7 @@ class RequesterUserId {
   constructor(
     userId,
     status,
-    createddAt,
+    createdAt,
     createdBy,
     modifiedAt,
     modifiedBy,
