@@ -326,11 +326,17 @@ const getCommunityRequest = async (req, res, next) => {
         requesterUserId.forEach((doc) => {
           const requesterUser = new RequesterUserId(
             doc.data().userId,
-            new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
+            doc.data().createdAt
+              ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+              : undefined,
             doc.data().createdBy,
-            new Date(doc.data().modifiedAt._seconds * 1000).toUTCString(),
+            doc.data().modifiedAt
+              ? new Date(doc.data().modifiedAt._seconds * 1000).toUTCString()
+              : undefined,
             doc.data().modifiedBy,
-            doc.data().deletedAt,
+            doc.data().deletedAt
+              ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+              : undefined,
             doc.data().deletedBy,
             doc.data().dataStatus
           );
@@ -359,11 +365,17 @@ const getCommunityRequest = async (req, res, next) => {
           const providedUser = new ProvidedUserId(
             doc.data().userId,
             doc.data().status,
-            new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
+            doc.data().createdAt
+              ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+              : undefined,
             doc.data().createdBy,
-            new Date(doc.data().modifiedAt._seconds * 1000).toUTCString(),
+            doc.data().modifiedAt
+              ? new Date(doc.data().modifiedAt._seconds * 1000).toUTCString()
+              : undefined,
             doc.data().modifiedBy,
-            doc.data().deletedAt,
+            doc.data().deletedAt
+              ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+              : undefined,
             doc.data().deletedBy,
             doc.data().dataStatus
           );
@@ -429,11 +441,17 @@ const getCommunityProvide = async (req, res, next) => {
             const requesterUser = new RequesterUserId(
               doc.data().userId,
               doc.data().status,
-              new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
-              new Date(doc.data().modifiedAt._seconds * 1000).toUTCString(),
-
+              doc.data().createdAt
+                ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+                : undefined,
+              doc.data().createdBy,
+              doc.data().modifiedAt
+                ? new Date(doc.data().modifiedAt._seconds * 1000).toUTCString()
+                : undefined,
               doc.data().modifiedBy,
-              doc.data().deletedAt,
+              doc.data().deletedAt
+                ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+                : undefined,
               doc.data().deletedBy,
               doc.data().dataStatus
             );
