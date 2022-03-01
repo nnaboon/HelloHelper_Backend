@@ -600,7 +600,8 @@ const bannedMember = async (req, res, next) => {
       .doc(req.params.memberId)
       .get();
 
-    const admin = await data
+    const admin = await db
+      .collection("communities")
       .doc(req.params.communityId)
       .collection("members")
       .where("role", "==", 1)
@@ -720,7 +721,7 @@ const addJoinedCommunityRequest = async (req, res, next) => {
         await authData.sendMail({
           from: "Hello Helper<accounts@franciscoinoque.tech>",
           to: user.data().email,
-          subject: "มีผู้ต้องการเข้่าร่วมชุมชนความข่วยเหลือ",
+          subject: "มีผู้ต้องการเข้าร่วมชุมชนความข่วยเหลือ",
           html: `สวัสดี<br /><br />มีผู้ต้องการขอเข้าร่วมชุมชนความช่วยเหลือ <br /><br />ลองเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
         });
 
@@ -856,12 +857,65 @@ const deleteCommunity = async (req, res, next) => {
       .auth()
       .verifyIdToken(idToken)
       .then(async (decodedIdToken) => {
-        await document.update({
-          deletedAt: admin.firestore.Timestamp.now(),
-          deletedBy: decodedIdToken.uid,
-          dataStatus: 1,
-        });
-        res.status(200).send("deleted community successfully");
+        const communityData = await db
+          .collection("communities")
+          .doc(req.params.id)
+          .get();
+
+        await document
+          .update({
+            deletedAt: admin.firestore.Timestamp.now(),
+            deletedBy: decodedIdToken.uid,
+            dataStatus: 1,
+          })
+          .then(async () => {
+            return await db
+              .collection("communities")
+              .doc(req.params.id)
+              .collection("members")
+              .get();
+          })
+          .then(async (result) => {
+            await Promise.all(
+              result.docs.map(async (doc) => {
+                const user = await db
+                  .collection("users")
+                  .doc(doc.data().userId)
+                  .get();
+
+                await db
+                  .collection("users")
+                  .doc(doc.data().userId)
+                  .update({
+                    communityId: user
+                      .data()
+                      .communityId.filter((items) => items != req.params.id),
+                  });
+
+                let authData = nodemailer.createTransport({
+                  host: "smtp.gmail.com",
+                  port: 465,
+                  secure: true,
+                  auth: {
+                    user: "srisawasdina@gmail.com",
+                    pass: "na21122542",
+                  },
+                });
+
+                await authData.sendMail({
+                  from: "Hello Helper<accounts@franciscoinoque.tech>",
+                  to: user.data().email,
+                  subject: "ชุมชนความช่วยเหลือถูกลบ",
+                  html: `สวัสดี<br /><br />ทางผู้นำชุมชนจำเป็นต้องแจ้งให้กับทางท่านสมาชิกในชุมชนทราบว่า มีการลบชุมชนความช่วยเหลือชื่อ ${communityData.communityName}</a>`,
+                });
+              })
+            );
+
+            res.status(200).send("deleted community successfully");
+          })
+          .catch((error) => {
+            res.status(400).send(error.message);
+          });
       })
       .catch((error) => {
         console.error("Error while verifying Firebase ID token:", error);

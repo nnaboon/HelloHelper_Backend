@@ -3,13 +3,14 @@ const Multer = require("multer");
 const {
   getRequests,
   getRequest,
-  getMyRequest,
+  getUserRequest,
   addRequest,
   addRequesterUserId,
   addProvidedUserId,
   updateProvidedStatus,
   updatedRequest,
   deletedRequest,
+  deleteRequesterUserId,
   deleteProvideUserId,
   uploadImage,
   getImage,
@@ -29,7 +30,7 @@ const multer = Multer({
 router.get("/", getRequests);
 router.get("/:id", getRequest);
 router.get("/:id/image", getImage);
-router.get("/user/:userId", getMyRequest);
+router.get("/user/:userId", getUserRequest);
 
 router.post("/", addRequest);
 router.post("/:requestId/requester/:userId", addRequesterUserId);
@@ -39,7 +40,7 @@ router.post("/upload", multer.single("img"), uploadImage);
 router.put("/:id", updatedRequest);
 router.put("/:id/disable", deletedRequest);
 router.put("/:requestId/provided/:providedId", updateProvidedStatus);
-
+router.delete("/:requestId/requester/:requesterId", deleteRequesterUserId);
 router.delete("/:requestId/provided", deleteProvideUserId);
 module.exports = {
   routes: router,

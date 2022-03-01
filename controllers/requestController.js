@@ -64,6 +64,7 @@ const getRequests = async (req, res, next) => {
 
           requesterUserId.forEach((doc) => {
             const requesterUser = new RequesterUserId(
+              doc.id,
               doc.data().userId,
               doc.data().createdAt
                 ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
@@ -162,6 +163,7 @@ const getRequest = async (req, res, next) => {
             .doc(doc.data().userId)
             .get();
           const requesterUser = new RequesterUserId(
+            doc.id,
             doc.data().userId,
             doc.data().createdAt
               ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
@@ -219,7 +221,7 @@ const getRequest = async (req, res, next) => {
   }
 };
 
-const getMyRequest = async (req, res, next) => {
+const getUserRequest = async (req, res, next) => {
   try {
     const entities = [];
 
@@ -264,6 +266,7 @@ const getMyRequest = async (req, res, next) => {
 
             requesterUserId.forEach((doc) => {
               const requesterUser = new RequesterUserId(
+                doc.id,
                 doc.data().userId,
                 doc.data().createdAt
                   ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
@@ -349,22 +352,45 @@ const addRequest = async (req, res, next) => {
           .get();
 
         user.forEach((doc) => {
-          if (doc.data().userId !== req.body.userId) {
-            let authData = nodemailer.createTransport({
-              host: "smtp.gmail.com",
-              port: 465,
-              secure: true,
-              auth: {
-                user: "srisawasdina@gmail.com",
-                pass: "na21122542",
-              },
-            });
-            authData.sendMail({
-              from: "Hello Helper<accounts@franciscoinoque.tech>",
-              to: doc.data().email,
-              subject: "มีคนต้องการความช่วยเหลือ",
-              html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />ลองเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
-            });
+          if (req.body.communityId) {
+            if (
+              doc.data().communityId?.includes(req.body.communityId) &&
+              doc.data().userId !== req.body.userId
+            ) {
+              let authData = nodemailer.createTransport({
+                host: "smtp.gmail.com",
+                port: 465,
+                secure: true,
+                auth: {
+                  user: "srisawasdina@gmail.com",
+                  pass: "na21122542",
+                },
+              });
+              authData.sendMail({
+                from: "Hello Helper<accounts@franciscoinoque.tech>",
+                to: doc.data().email,
+                subject: "มีคนต้องการความช่วยเหลือ",
+                html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />ลองเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
+              });
+            }
+          } else {
+            if (doc.data().userId !== req.body.userId) {
+              let authData = nodemailer.createTransport({
+                host: "smtp.gmail.com",
+                port: 465,
+                secure: true,
+                auth: {
+                  user: "srisawasdina@gmail.com",
+                  pass: "na21122542",
+                },
+              });
+              authData.sendMail({
+                from: "Hello Helper<accounts@franciscoinoque.tech>",
+                to: doc.data().email,
+                subject: "มีคนต้องการความช่วยเหลือ",
+                html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />ลองเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
+              });
+            }
           }
         });
         return result.get();
@@ -404,11 +430,12 @@ const addRequesterUserId = async (req, res, next) => {
     if (isExistData.size > 0) {
       res.status(400).send("you already send request");
     } else {
-      const request = await db
-        .collection("requests")
-        .doc(req.params.requestId)
-        .get();
-      const data = await db
+      // const request = await db
+      //   .collection("requests")
+      //   .doc(req.params.requestId)
+      //   .get();
+
+      return await db
         .collection("requests")
         .doc(req.params.requestId)
         .collection("requesterUserId")
@@ -417,30 +444,41 @@ const addRequesterUserId = async (req, res, next) => {
           createdAt: admin.firestore.Timestamp.now(),
           createdBy: req.params.userId,
           dataStatus: 0,
+        })
+        .then(async () => {
+          return await db
+            .collection("requests")
+            .doc(req.params.requestId)
+            .collection("requesterUserId")
+            .get();
+        })
+        .then(async (result) => {
+          const entities = [];
+
+          result.docs.forEach((doc) => {
+            entities.push({ requestId: doc.id, ...doc.data() });
+          });
+          res.status(200).send(entities);
+          const user = await db
+            .collection("users")
+            .doc(result.data().userId)
+            .get();
+          let authData = nodemailer.createTransport({
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true,
+            auth: {
+              user: "srisawasdina@gmail.com",
+              pass: "na21122542",
+            },
+          });
+          await authData.sendMail({
+            from: "Hello Helper<accounts@franciscoinoque.tech>",
+            to: user.data().email,
+            subject: "มีคนต้องการให้ความช่วยเหลือ",
+            html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการให้ความช่วยเหลือตรงกับสิ่งที่คุณร้องขอ<br /><br />ลองเช็คดูที่ได้ <a href="https://hello-helper-66225d.netlify.app/${result.title}/${result.id}">ที่นี่</a>`,
+          });
         });
-
-      const user = await db
-        .collection("users")
-        .doc(request.data().userId)
-        .get();
-
-      let authData = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true,
-        auth: {
-          user: "srisawasdina@gmail.com",
-          pass: "na21122542",
-        },
-      });
-
-      await authData.sendMail({
-        from: "Hello Helper<accounts@franciscoinoque.tech>",
-        to: user.data().email,
-        subject: "มีคนต้องการให้ความช่วยเหลือ",
-        html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการให้ความช่วยเหลือตรงกับสิ่งที่คุณร้องขอ<br /><br />ลองเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
-      });
-      res.status(200).send(data.id);
     }
   } catch (error) {
     res.status(400).send(error.message);
@@ -535,6 +573,7 @@ const updatedRequest = async (req, res, next) => {
                 .doc(doc.data().userId)
                 .get();
               const requesterUser = new RequesterUserId(
+                doc.id,
                 doc.data().userId,
                 doc.data().createdAt
                   ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
@@ -604,6 +643,21 @@ const deletedRequest = async (req, res, next) => {
       dataStatus: 1,
     });
     res.status(200).send("deleted successfully");
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+const deleteRequesterUserId = async (req, res, next) => {
+  try {
+    await db
+      .collection("requests")
+      .doc(req.params.requestId)
+      .collection("requesterUserId")
+      .doc(req.params.requesterId)
+      .delete();
+
+    res.status(200).send("delete requesterUserId successfully");
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -697,6 +751,7 @@ const getImage = async (req, res, next) => {
   });
 };
 
+//delete collection providedUserId
 const deleteProvideUserId = async (req, res, next) => {
   const collectionRef = db
     .collection("requests")
@@ -738,7 +793,7 @@ const deleteProvideUserId = async (req, res, next) => {
 module.exports = {
   getRequests,
   getRequest,
-  getMyRequest,
+  getUserRequest,
   addRequest,
   addRequesterUserId,
   addProvidedUserId,
@@ -746,6 +801,7 @@ module.exports = {
   updatedRequest,
   deletedRequest,
   deleteProvideUserId,
+  deleteRequesterUserId,
   uploadImage,
   getImage,
 };

@@ -15,14 +15,38 @@ const os = require("os");
 
 const verifyToken = async (req, res, next) => {
   try {
+    // admin
+    //   .auth()
+    //   .verifyIdToken(req.body.idToken)
+    //   .then((response) => {
+    //     res.status(200).send(response);
+    //   })
+    //   .catch((error) => {
+    //     res.status(400).send(error.message);
+    //   });
+    let idToken;
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      console.log('Found "Authorization" header');
+      // Read the ID Token from the Authorization header.
+      idToken = req.headers.authorization.split("Bearer ")[1];
+    } else {
+      console.log('Found "__session" cookie');
+      // Read the ID Token from cookie.
+      idToken = req.cookies.__session;
+    }
+
     admin
       .auth()
-      .verifyIdToken(req.body.idToken)
-      .then((response) => {
-        res.status(200).send(response);
+      .verifyIdToken(idToken)
+      .then(async (decodedIdToken) => {
+        res.status(200).send(decodedIdToken.uid);
       })
       .catch((error) => {
-        res.status(400).send(error.message);
+        console.error("Error while verifying Firebase ID token:", error);
+        res.status(403).send("Unauthorized");
       });
   } catch (error) {
     res.status(400).send(error.message);
@@ -198,13 +222,19 @@ const getUsers = async (req, res, next) => {
           doc.data().provideId,
           doc.data().requestId,
           doc.data().createdBy,
-          new Date(doc.data().createdAt._seconds * 1000).toUTCString(),
-          doc.data().createdAt,
-          new Date(doc.data().modifiedAt._seconds * 1000).toUTCString(),
+          doc.data().createdAt
+            ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+            : undefined,
+          doc.data().createdBy,
+          doc.data().modifiedAt
+            ? new Date(doc.data().modifiedAt._seconds * 1000).toUTCString()
+            : undefined,
           doc.data().modifiedBy,
-          doc.data().deletedAt,
-          doc.data().deletedBy
-          // doc.data().dataStatus
+          doc.data().deletedAt
+            ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+            : undefined,
+          doc.data().deletedBy,
+          doc.data().dataStatus
         );
         entities.push(user);
       });
@@ -269,6 +299,136 @@ const createUser = async (req, res, next) => {
   // });
 };
 
+const followUserId = async (req, res, next) => {
+  try {
+    let idToken;
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      console.log('Found "Authorization" header');
+      // Read the ID Token from the Authorization header.
+      idToken = req.headers.authorization.split("Bearer ")[1];
+    } else {
+      console.log('Found "__session" cookie');
+      // Read the ID Token from cookie.
+      idToken = req.cookies.__session;
+    }
+
+    admin
+      .auth()
+      .verifyIdToken(idToken)
+      .then(async (decodedIdToken) => {
+        await db
+          .collection("users")
+          .doc(decodedIdToken.uid)
+          .collection("followings")
+          .add({
+            userId: req.params.userId,
+            createdAt: admin.firestore.Timestamp.now(),
+            createdBy: decodedIdToken.uid,
+            dataStatus: 0,
+          });
+
+        await db
+          .collection("users")
+          .doc(req.params.userId)
+          .collection("followers")
+          .add({
+            userId: decodedIdToken.uid,
+            createdAt: admin.firestore.Timestamp.now(),
+            createdBy: decodedIdToken.uid,
+            dataStatus: 0,
+          })
+          .then((result) => {
+            //   return await db
+            //     .collection("users")
+            //     .doc(decodedIdToken.uid)
+            //     .doc(req.params.userId)
+            //     .collection("follower")
+            //     .get();
+            // })
+            // .then((result) => {
+            //   const entities = [];
+            //   result.docs.forEach((doc) => {
+            //     entities.push({ followerId: doc.id, ...doc.data() });
+            //   });
+            res.status(200).send(result.id);
+          })
+          .catch((error) => {
+            res.status(400).send(error.message);
+          });
+      });
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+const unfollowUserId = async (req, res, next) => {
+  try {
+    let idToken;
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      console.log('Found "Authorization" header');
+      // Read the ID Token from the Authorization header.
+      idToken = req.headers.authorization.split("Bearer ")[1];
+    } else {
+      console.log('Found "__session" cookie');
+      // Read the ID Token from cookie.
+      idToken = req.cookies.__session;
+    }
+
+    admin
+      .auth()
+      .verifyIdToken(idToken)
+      .then(async (decodedIdToken) => {
+        const followingData = await db
+          .collection("users")
+          .doc(decodedIdToken.uid)
+          .collection("followings")
+          .where("userId", "==", req.params.userId)
+          .get();
+
+        followingData.forEach((doc) => {
+          doc.ref.delete();
+        });
+
+        const followerData = await db
+          .collection("users")
+          .doc(req.params.userId)
+          .collection("followers")
+          .where("userId", "==", decodedIdToken.uid)
+          .get();
+
+        followerData.forEach((doc) => {
+          doc.ref.delete();
+        });
+
+        // .then(async (result) => {
+        //   return await db
+        //     .collection("users")
+        //     .doc(decodedIdToken.uid)
+        //     .collection("followers")
+        //     .get();
+        // })
+        // .then((result) => {
+        //   const entities = [];
+        //   result.docs.forEach((doc) => {
+        //     entities.push({ followerId: doc.id, ...doc.data() });
+        //   });
+        res.status(200).send("unfollow user successfully");
+        // })
+        // .catch((error) => {
+        //   res.status(400).send(error.message);
+        // });
+      });
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
 const sendVerificationEmail = async (req, res, next) => {
   const { email } = req.body;
   const first_name = "Francisco";
@@ -310,8 +470,36 @@ const sendVerificationEmail = async (req, res, next) => {
 const getUser = async (req, res, next) => {
   try {
     const data = await db.collection("users").doc(req.params.id).get();
+    const followerData = await db
+      .collection("users")
+      .doc(req.params.id)
+      .collection("followers")
+      .get();
+
+    const followingData = await db
+      .collection("users")
+      .doc(req.params.id)
+      .collection("followings")
+      .get();
+
+    let followerEntities = [];
+    let followingEntities = [];
+
     if (data.exists) {
-      res.status(200).send({ userId: data.id, ...data.data() });
+      followerData.docs.map((doc) => {
+        followerEntities.push({ followerId: doc.id, ...doc.data() });
+      });
+
+      followingData.docs.map((doc) => {
+        followingEntities.push({ followingId: doc.id, ...doc.data() });
+      });
+
+      res.status(200).send({
+        userId: data.id,
+        ...data.data(),
+        followingUserId: followingEntities,
+        followerUserId: followerEntities,
+      });
     } else {
       res.status(200).send({});
     }
@@ -448,6 +636,8 @@ module.exports = {
   sendVerificationEmail,
   updateUserVerificationEmailStatus,
   createUser,
+  followUserId,
+  unfollowUserId,
   uploadImage,
   getImage,
   updateRank,

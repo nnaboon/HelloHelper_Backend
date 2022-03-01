@@ -312,7 +312,6 @@ const updateReadStatus = async (req, res, next) => {
       })
       .get();
 
-    console.log(myUnreadMessage.empty);
     if (myUnreadMessage.empty) {
       res.status(200).send("No unread messages");
     } else {

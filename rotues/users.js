@@ -11,6 +11,8 @@ const {
   sendVerificationEmail,
   updateUserVerificationEmailStatus,
   createUser,
+  followUserId,
+  unfollowUserId,
   getImage,
   uploadImage,
   updateRank,
@@ -31,6 +33,9 @@ router.get("/:id/image", getImage);
 
 router.post("/", addUsers);
 router.post("/create", createUser);
+router.post("/:userId/follow", followUserId);
+router.post("/:userId/unfollow", unfollowUserId);
+
 router.post("/send-mail-ver", sendVerificationEmail);
 router.post("/upload", multer.single("img"), uploadImage);
 router.post("/login", signin);

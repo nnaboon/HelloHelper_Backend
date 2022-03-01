@@ -7,6 +7,7 @@ class User {
     verifiedEmailStatus,
     location,
     imageUrl,
+    name,
     address,
     phoneNumber,
     recommend,
@@ -35,6 +36,7 @@ class User {
     this.verifiedEmailStatus = verifiedEmailStatus;
     this.location = location;
     this.imageUrl = imageUrl;
+    this.name = name;
     this.address = address;
     this.phoneNumber = phoneNumber;
     this.recommend = recommend;

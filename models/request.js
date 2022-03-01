@@ -52,6 +52,7 @@ class Request {
 
 class RequesterUserId {
   constructor(
+    requesterId,
     userId,
     createdAt,
     createdBy,
@@ -61,7 +62,7 @@ class RequesterUserId {
     deletedBy,
     dataStatus
   ) {
-    this.userId = userId;
+    (this.requesterId = requesterId), (this.userId = userId);
     this.createdAt = createdAt;
     this.createdBy = createdBy;
     this.modifiedAt = modifiedAt;
