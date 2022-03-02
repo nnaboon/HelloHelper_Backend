@@ -12,6 +12,8 @@ const BusBoy = require("busboy");
 const path = require("path");
 const os = require("os");
 
+const nodemailer = require("nodemailer");
+
 const getProvides = async (req, res, next) => {
   try {
     const data = await db
@@ -454,7 +456,7 @@ const updatedProvide = async (req, res, next) => {
   }
 };
 
-const deletedProvide = async (req, res, next) => {
+const disableProvide = async (req, res, next) => {
   try {
     const data = db.collection("provides").doc(req.params.id);
     await data.update({
@@ -462,7 +464,35 @@ const deletedProvide = async (req, res, next) => {
       deletedBy: req.body.userId,
       dataStatus: 1,
     });
-    res.status(200).send("deleted successfully");
+    res.status(200).send("disable successfully");
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+const deleteProvide = async (req, res, next) => {
+  try {
+    let idToken;
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      console.log('Found "Authorization" header');
+      // Read the ID Token from the Authorization header.
+      idToken = req.headers.authorization.split("Bearer ")[1];
+    } else {
+      console.log('Found "__session" cookie');
+      // Read the ID Token from cookie.
+      idToken = req.cookies.__session;
+    }
+
+    admin
+      .auth()
+      .verifyIdToken(idToken)
+      .then(async (decodedIdToken) => {
+        await db.collection("provides").doc(req.params.id).delete();
+        res.status(200).send("deleted successfully");
+      });
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -583,7 +613,8 @@ module.exports = {
   searchProvide,
   addProvide,
   updatedProvide,
-  deletedProvide,
+  disableProvide,
+  deleteProvide,
   addRequesterUser,
   getImage,
   uploadImage,

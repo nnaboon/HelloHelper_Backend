@@ -2,6 +2,7 @@ const db = require("../db");
 const moment = require("moment");
 const { Order } = require("../models/order");
 const admin = require("firebase-admin");
+const nodemailer = require("nodemailer");
 
 const getOrders = async (req, res, next) => {
   try {
@@ -205,23 +206,67 @@ const getMyProvideOrders = async (req, res, next) => {
 
 const addOrder = async (req, res, next) => {
   try {
-    await db
-      .collection("orders")
-      .add({
-        ...req.body,
-        status: "waiting",
-        createdAt: admin.firestore.Timestamp.now(),
-        createdBy: req.body.requesterUserId,
-        dataStatus: 0,
+    let idToken;
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      console.log('Found "Authorization" header');
+      // Read the ID Token from the Authorization header.
+      idToken = req.headers.authorization.split("Bearer ")[1];
+    } else {
+      console.log('Found "__session" cookie');
+      // Read the ID Token from cookie.
+      idToken = req.cookies.__session;
+    }
+
+    admin
+      .auth()
+      .verifyIdToken(idToken)
+      .then(async (decodedIdToken) => {
+        await db
+          .collection("orders")
+          .add({
+            ...req.body,
+            status: "waiting",
+            createdAt: admin.firestore.Timestamp.now(),
+            createdBy: req.body.requesterUserId,
+            dataStatus: 0,
+          })
+          .then((result) => {
+            return result.get();
+          })
+          .then(async (result) => {
+            const user = await db
+              .collection("users")
+              .doc(req.body.providerUserId)
+              .get();
+
+            let authData = nodemailer.createTransport({
+              host: "smtp.gmail.com",
+              port: 465,
+              secure: true,
+              auth: {
+                user: "srisawasdina@gmail.com",
+                pass: "na21122542",
+              },
+            });
+
+            await authData.sendMail({
+              from: "Hello Helper<accounts@franciscoinoque.tech>",
+              to: user.data().email,
+              subject: "เราพบว่าคุณมีออเดอร์รอการยืนยัน",
+              html: `สวัสดี<br /><br />เราพบว่าคุณมีออเดอร์รอการยืนยัน <br /><br />สามารถเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
+            });
+
+            res.status(200).send({
+              id: result.id,
+              ...result.data(),
+            });
+          });
       })
-      .then((result) => {
-        return result.get();
-      })
-      .then(async (result) => {
-        return res.status(200).send({
-          id: result.id,
-          ...result.data(),
-        });
+      .catch((error) => {
+        res.status(400).send(error.message);
       });
   } catch (error) {
     res.status(400).send(error.message);

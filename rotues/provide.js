@@ -8,7 +8,8 @@ const {
   getProvidesRanking,
   addProvide,
   updatedProvide,
-  deletedProvide,
+  disableProvide,
+  deleteProvide,
   addRequesterUser,
   uploadImage,
   getImage,
@@ -38,8 +39,10 @@ router.post("/:provideId/requester/:userId", addRequesterUser);
 router.post("/upload", multer.single("img"), uploadImage);
 
 router.put("/:id", updatedProvide);
-router.put("/:id/disable", deletedProvide);
+router.put("/:id/disable", disableProvide);
 router.put("/:id/sum", updateProvideSum);
+
+router.delete("/:id/delete", deleteProvide);
 
 module.exports = {
   routes: router,

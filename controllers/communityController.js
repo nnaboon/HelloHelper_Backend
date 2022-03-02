@@ -23,87 +23,76 @@ const getCommunities = async (req, res, next) => {
     const entities = [];
 
     if (data.empty) {
-      res.status(404).send("No user found");
+      res.status(404).send("No community found");
     } else {
       await Promise.all(
         data.docs.map(async (doc) => {
-          const id = doc.id;
-          const user = new Community(
-            id,
-            doc.data().communityCode,
-            doc.data().communityName,
-            doc.data().imageUrl,
-            doc.data().location,
-            doc.data().description,
-            doc.data().imageUrl,
-            // doc.data().createdAt,
-            // doc.data().createdBy,
-            // doc.data().modifiedAt,
-            // doc.data().modifiedBy,
-            // doc.data().deletedAt,
-            // doc.data().deletedBy,
-            doc.data().dataStatus
-          );
+          if (doc.data().dataStatus === 0) {
+            const id = doc.id;
+            const user = new Community(
+              id,
+              doc.data().communityCode,
+              doc.data().communityName,
+              doc.data().imageUrl,
+              doc.data().location,
+              doc.data().description,
+              doc.data().imageUrl,
+              doc.data().dataStatus
+            );
 
-          const memberEntities = [];
-          const joinedRequestEntities = [];
+            const memberEntities = [];
+            const joinedRequestEntities = [];
 
-          const members = await db
-            .collection("communities")
-            .doc(id)
-            .collection("members")
-            .where("status", "==", 0)
-            .get();
+            const members = await db
+              .collection("communities")
+              .doc(id)
+              .collection("members")
+              .where("status", "==", 0)
+              .get();
 
-          if (members.empty) {
-            Object.assign(user, { member: memberEntities });
-          } else {
-            members.forEach((doc) => {
-              const member = new Member(
-                doc.id,
-                doc.data().status,
-                doc.data().role,
-                doc.data().requestSum,
-                doc.data().provideSum,
-                doc.data().joinedAt,
-                doc.data().leavedAt
-              );
-              memberEntities.push(member);
-            });
-            Object.assign(user, { member: memberEntities });
+            if (members.empty) {
+              Object.assign(user, { member: memberEntities });
+            } else {
+              members.forEach((doc) => {
+                const member = new Member(
+                  doc.id,
+                  doc.data().status,
+                  doc.data().role,
+                  doc.data().requestSum,
+                  doc.data().provideSum,
+                  doc.data().joinedAt,
+                  doc.data().leavedAt
+                );
+                memberEntities.push(member);
+              });
+              Object.assign(user, { member: memberEntities });
+            }
+
+            const joinedRequest = await db
+              .collection("communities")
+              .doc(id)
+              .collection("joinedRequestUserId")
+              .get();
+
+            if (joinedRequest.empty) {
+              Object.assign(user, {
+                joinedRequestUserId: joinedRequestEntities,
+              });
+            } else {
+              joinedRequest.forEach((doc) => {
+                const joinedRequest = new JoinedRequest(
+                  doc.id,
+                  doc.data().userId,
+                  doc.data().status
+                );
+                joinedRequestEntities.push(joinedRequest);
+              });
+              Object.assign(user, {
+                joinedRequestUserId: joinedRequestEntities,
+              });
+            }
+            entities.push(user);
           }
-
-          const joinedRequest = await db
-            .collection("communities")
-            .doc(id)
-            .collection("joinedRequestUserId")
-            .get();
-
-          if (joinedRequest.empty) {
-            Object.assign(user, {
-              joinedRequestUserId: joinedRequestEntities,
-            });
-          } else {
-            joinedRequest.forEach((doc) => {
-              const joinedRequest = new JoinedRequest(
-                doc.id,
-                doc.data().userId,
-                doc.data().status
-                // doc.data().createdAt,
-                // doc.data().createdBy,
-                // doc.data().modifiedAt,
-                // doc.data().modifiedBy,
-                // doc.data().deletedAt,
-                // doc.data().deletedBy,
-                // doc.data().dataStatus
-              );
-              joinedRequestEntities.push(joinedRequest);
-            });
-            Object.assign(user, {
-              joinedRequestUserId: joinedRequestEntities,
-            });
-          }
-          entities.push(user);
         })
       );
       res.status(200).send(entities);
@@ -593,64 +582,83 @@ const updateMemberRole = async (req, res, next) => {
 
 const bannedMember = async (req, res, next) => {
   try {
-    const data = await db
-      .collection("communities")
-      .doc(req.params.communityId)
-      .collection("members")
-      .doc(req.params.memberId)
-      .get();
-
-    const admin = await db
-      .collection("communities")
-      .doc(req.params.communityId)
-      .collection("members")
-      .where("role", "==", 1)
-      .get();
-
-    if (admin.size >= 3 && req.body.role == 1) {
-      res.status(404).send("Sorry maximum admin role is 3");
-    } else if (admin.size == 1 && data.data().role == 1) {
-      res.status(404).send("Sorry admin role must be at less 1");
+    let idToken;
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      console.log('Found "Authorization" header');
+      // Read the ID Token from the Authorization header.
+      idToken = req.headers.authorization.split("Bearer ")[1];
     } else {
-      return await db
-        .collection("communities")
-        .doc(req.params.communityId)
-        .collection("members")
-        .doc(req.params.memberId)
-        .update({
-          status: 1,
-          deletedAt: admin.firestore.Timestamp.now(),
-          deletedBy: req.body.communityAdminUserId,
-          dataStatus: 1,
-        })
-        .then(async (result) => {
-          const user = await db
-            .collection("users")
-            .doc(data.data().userId)
-            .get();
-          await db
-            .collection("users")
-            .doc(data.data().userId)
-            .update({
-              communityId: user
-                .data()
-                .communityId.filter((items) => items != req.params.communityId),
-            });
-          return db
+      console.log('Found "__session" cookie');
+      // Read the ID Token from cookie.
+      idToken = req.cookies.__session;
+    }
+
+    admin
+      .auth()
+      .verifyIdToken(idToken)
+      .then(async (decodedIdToken) => {
+        const data = await db
+          .collection("communities")
+          .doc(req.params.communityId)
+          .collection("members")
+          .doc(req.params.memberId)
+          .get();
+
+        const adminData = await db
+          .collection("communities")
+          .doc(req.params.communityId)
+          .collection("members")
+          .where("role", "==", 1)
+          .get();
+
+        if (adminData.size >= 3 && req.body.role == 1) {
+          res.status(404).send("Sorry maximum admin role is 3");
+        } else if (adminData.size == 1 && data.data().role == 1) {
+          res.status(404).send("Sorry admin role must be at less 1");
+        } else {
+          return await db
             .collection("communities")
             .doc(req.params.communityId)
             .collection("members")
-            .where("status", "==", 0)
-            .get();
-        })
-        .then((result) => {
-          const entities = [];
-          result.forEach((doc) => {
-            entities.push({ id: doc.id, ...doc.data() });
-          });
-          res.status(200).send(entities);
-        });
-    }
+            .doc(req.params.memberId)
+            .delete()
+            .then(async (result) => {
+              const user = await db
+                .collection("users")
+                .doc(data.data().userId)
+                .get();
+              await db
+                .collection("users")
+                .doc(data.data().userId)
+                .update({
+                  communityId: user
+                    .data()
+                    .communityId.filter(
+                      (items) => items != req.params.communityId
+                    ),
+                });
+              return db
+                .collection("communities")
+                .doc(req.params.communityId)
+                .collection("members")
+                .where("status", "==", 0)
+                .get();
+            })
+            .then((result) => {
+              const entities = [];
+              result.forEach((doc) => {
+                entities.push({ id: doc.id, ...doc.data() });
+              });
+              res.status(200).send(entities);
+            });
+        }
+      })
+      .catch((error) => {
+        res.status(400).send(error.message);
+      });
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -722,7 +730,7 @@ const addJoinedCommunityRequest = async (req, res, next) => {
           from: "Hello Helper<accounts@franciscoinoque.tech>",
           to: user.data().email,
           subject: "มีผู้ต้องการเข้าร่วมชุมชนความข่วยเหลือ",
-          html: `สวัสดี<br /><br />มีผู้ต้องการขอเข้าร่วมชุมชนความช่วยเหลือ <br /><br />ลองเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
+          html: `สวัสดี<br /><br />มีผู้ต้องการขอเข้าร่วมชุมชนความช่วยเหลือ <br /><br />สามารถเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
         });
 
         res.status(200).send(joinedRequest.id);
@@ -876,6 +884,7 @@ const deleteCommunity = async (req, res, next) => {
               .get();
           })
           .then(async (result) => {
+            res.status(200).send("deleted community successfully");
             await Promise.all(
               result.docs.map(async (doc) => {
                 const user = await db
@@ -906,12 +915,12 @@ const deleteCommunity = async (req, res, next) => {
                   from: "Hello Helper<accounts@franciscoinoque.tech>",
                   to: user.data().email,
                   subject: "ชุมชนความช่วยเหลือถูกลบ",
-                  html: `สวัสดี<br /><br />ทางผู้นำชุมชนจำเป็นต้องแจ้งให้กับทางท่านสมาชิกในชุมชนทราบว่า มีการลบชุมชนความช่วยเหลือชื่อ ${communityData.communityName}</a>`,
+                  html: `สวัสดี<br /><br />ทางผู้นำชุมชนจำเป็นต้องแจ้งให้กับทางท่านสมาชิกในชุมชนทราบว่า มีการลบชุมชนความช่วยเหลือชื่อ ${
+                    communityData.data().communityName
+                  }</a>`,
                 });
               })
             );
-
-            res.status(200).send("deleted community successfully");
           })
           .catch((error) => {
             res.status(400).send(error.message);

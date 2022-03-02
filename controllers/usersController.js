@@ -501,7 +501,7 @@ const getUser = async (req, res, next) => {
         followerUserId: followerEntities,
       });
     } else {
-      res.status(200).send({});
+      res.status(400).send(error.message);
     }
   } catch (error) {
     res.status(400).send(error.message);

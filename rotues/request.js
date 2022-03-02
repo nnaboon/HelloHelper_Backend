@@ -9,7 +9,8 @@ const {
   addProvidedUserId,
   updateProvidedStatus,
   updatedRequest,
-  deletedRequest,
+  disableRequest,
+  deleteRequest,
   deleteRequesterUserId,
   deleteProvideUserId,
   uploadImage,
@@ -38,8 +39,9 @@ router.post("/:requestId/provided/:userId", addProvidedUserId);
 router.post("/upload", multer.single("img"), uploadImage);
 
 router.put("/:id", updatedRequest);
-router.put("/:id/disable", deletedRequest);
+router.put("/:id/disable", disableRequest);
 router.put("/:requestId/provided/:providedId", updateProvidedStatus);
+router.delete("/:id/delete", deleteRequest);
 router.delete("/:requestId/requester/:requesterId", deleteRequesterUserId);
 router.delete("/:requestId/provided", deleteProvideUserId);
 module.exports = {

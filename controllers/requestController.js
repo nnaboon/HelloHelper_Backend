@@ -370,7 +370,7 @@ const addRequest = async (req, res, next) => {
                 from: "Hello Helper<accounts@franciscoinoque.tech>",
                 to: doc.data().email,
                 subject: "มีคนต้องการความช่วยเหลือ",
-                html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />ลองเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
+                html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />สามารถเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
               });
             }
           } else {
@@ -388,7 +388,7 @@ const addRequest = async (req, res, next) => {
                 from: "Hello Helper<accounts@franciscoinoque.tech>",
                 to: doc.data().email,
                 subject: "มีคนต้องการความช่วยเหลือ",
-                html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />ลองเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
+                html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />สามารถเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
               });
             }
           }
@@ -476,7 +476,7 @@ const addRequesterUserId = async (req, res, next) => {
             from: "Hello Helper<accounts@franciscoinoque.tech>",
             to: user.data().email,
             subject: "มีคนต้องการให้ความช่วยเหลือ",
-            html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการให้ความช่วยเหลือตรงกับสิ่งที่คุณร้องขอ<br /><br />ลองเช็คดูที่ได้ <a href="https://hello-helper-66225d.netlify.app/${result.title}/${result.id}">ที่นี่</a>`,
+            html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการให้ความช่วยเหลือตรงกับสิ่งที่คุณร้องขอ<br /><br />สามารถเช็คดูที่ได้ <a href="https://hello-helper-66225d.netlify.app/${result.title}/${result.id}">ที่นี่</a>`,
           });
         });
     }
@@ -634,7 +634,7 @@ const updatedRequest = async (req, res, next) => {
   }
 };
 
-const deletedRequest = async (req, res, next) => {
+const disableRequest = async (req, res, next) => {
   try {
     const data = db.collection("requests").doc(req.params.id);
     await data.update({
@@ -642,6 +642,15 @@ const deletedRequest = async (req, res, next) => {
       deletedBy: req.body.userId,
       dataStatus: 1,
     });
+    res.status(200).send("disable successfully");
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+const deleteRequest = async (req, res, next) => {
+  try {
+    await db.collection("requests").doc(req.params.id).delete();
     res.status(200).send("deleted successfully");
   } catch (error) {
     res.status(400).send(error.message);
@@ -799,7 +808,8 @@ module.exports = {
   addProvidedUserId,
   updateProvidedStatus,
   updatedRequest,
-  deletedRequest,
+  disableRequest,
+  deleteRequest,
   deleteProvideUserId,
   deleteRequesterUserId,
   uploadImage,
