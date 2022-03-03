@@ -20,6 +20,7 @@ const getProvides = async (req, res, next) => {
       .collection("provides")
       .where("visibility", "==", 1)
       .where("dataStatus", "==", 0)
+      .orderBy("provideSum", "desc")
       .get();
 
     const entities = [];

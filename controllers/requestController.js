@@ -335,83 +335,106 @@ const getUserRequest = async (req, res, next) => {
 
 const addRequest = async (req, res, next) => {
   try {
-    db.collection("requests")
-      .add({
-        ...req.body,
-        visibility: 1,
-        createdAt: admin.firestore.Timestamp.now(),
-        createdBy: req.body.userId,
-        modifiedAt: admin.firestore.Timestamp.now(),
-        modifiedBy: req.body.userId,
-        dataStatus: 0,
-      })
-      .then(async (result) => {
-        const user = await db
-          .collection("users")
-          .where("category", "array-contains", ...req.body.category)
-          .get();
+    let idToken;
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      console.log('Found "Authorization" header');
+      // Read the ID Token from the Authorization header.
+      idToken = req.headers.authorization.split("Bearer ")[1];
+    } else {
+      console.log('Found "__session" cookie');
+      // Read the ID Token from cookie.
+      idToken = req.cookies.__session;
+    }
 
-        user.forEach((doc) => {
-          if (req.body.communityId) {
-            if (
-              doc.data().communityId?.includes(req.body.communityId) &&
-              doc.data().userId !== req.body.userId
-            ) {
-              let authData = nodemailer.createTransport({
-                host: "smtp.gmail.com",
-                port: 465,
-                secure: true,
-                auth: {
-                  user: "srisawasdina@gmail.com",
-                  pass: "na21122542",
-                },
-              });
-              authData.sendMail({
-                from: "Hello Helper<accounts@franciscoinoque.tech>",
-                to: doc.data().email,
-                subject: "มีคนต้องการความช่วยเหลือ",
-                html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />สามารถเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
-              });
-            }
-          } else {
-            if (doc.data().userId !== req.body.userId) {
-              let authData = nodemailer.createTransport({
-                host: "smtp.gmail.com",
-                port: 465,
-                secure: true,
-                auth: {
-                  user: "srisawasdina@gmail.com",
-                  pass: "na21122542",
-                },
-              });
-              authData.sendMail({
-                from: "Hello Helper<accounts@franciscoinoque.tech>",
-                to: doc.data().email,
-                subject: "มีคนต้องการความช่วยเหลือ",
-                html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />สามารถเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
-              });
-            }
-          }
-        });
-        return result.get();
+    admin
+      .auth()
+      .verifyIdToken(idToken)
+      .then(async (decodedIdToken) => {
+        db.collection("requests")
+          .add({
+            ...req.body,
+            visibility: 1,
+            createdAt: admin.firestore.Timestamp.now(),
+            createdBy: req.body.userId,
+            modifiedAt: admin.firestore.Timestamp.now(),
+            modifiedBy: req.body.userId,
+            dataStatus: 0,
+          })
+          .then(async (result) => {
+            const user = await db
+              .collection("users")
+              .where("category", "array-contains", ...req.body.category)
+              .get();
+
+            user.forEach((doc) => {
+              if (req.body.communityId) {
+                if (
+                  doc.data().communityId?.includes(req.body.communityId) &&
+                  doc.data().userId !== req.body.userId
+                ) {
+                  let authData = nodemailer.createTransport({
+                    host: "smtp.gmail.com",
+                    port: 465,
+                    secure: true,
+                    auth: {
+                      user: "srisawasdina@gmail.com",
+                      pass: "na21122542",
+                    },
+                  });
+                  authData.sendMail({
+                    from: "Hello Helper<accounts@franciscoinoque.tech>",
+                    to: doc.data().email,
+                    subject: "มีคนต้องการความช่วยเหลือ",
+                    html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />สามารถเช็คดูที่ได้ <a href="https://hello-helper-66225d.netlify.app/request/${req.body.title}/${result.id}">ที่นี่</a>`,
+                  });
+                }
+              } else {
+                if (doc.data().userId !== req.body.userId) {
+                  let authData = nodemailer.createTransport({
+                    host: "smtp.gmail.com",
+                    port: 465,
+                    secure: true,
+                    auth: {
+                      user: "srisawasdina@gmail.com",
+                      pass: "na21122542",
+                    },
+                  });
+                  authData.sendMail({
+                    from: "Hello Helper<accounts@franciscoinoque.tech>",
+                    to: doc.data().email,
+                    subject: "มีคนต้องการความช่วยเหลือ",
+                    html: `สวัสดี<br /><br />เราพบว่ามีผู้ต้องการความช่วยเหลือตรงกับสิ่งที่คุณสามารถช่วยเหลือได้<br /><br />สามารถเช็คดูที่ได้ <a href="https://hello-helper-66225d.netlify.app/request/${req.body.title}/${result.id}">ที่นี่</a>`,
+                  });
+                }
+              }
+            });
+            return result.get();
+          })
+          .then(async (result) => {
+            const user = await db
+              .collection("users")
+              .doc(result.data().userId)
+              .get();
+            return res.status(200).send({
+              id: result.id,
+              ...result.data(),
+              user: {
+                imageUrl: user.data().imageUrl,
+                recommend: user.data().recommend,
+                rank: user.data().rank,
+                username: user.data().username,
+                email: user.data().email,
+                rating: user.data().rating,
+              },
+            });
+          });
       })
-      .then(async (result) => {
-        const user = await db
-          .collection("users")
-          .doc(result.data().userId)
-          .get();
-        return res.status(200).send({
-          id: result.id,
-          ...result.data(),
-          user: {
-            imageUrl: user.data().imageUrl,
-            recommend: user.data().recommend,
-            rank: user.data().rank,
-            username: user.data().username,
-            email: user.data().email,
-            rating: user.data().rating,
-          },
-        });
+      .catch((error) => {
+        console.error("Error while verifying Firebase ID token:", error);
+        res.status(403).send("Unauthorized");
       });
   } catch (error) {
     res.status(400).send(error.message);

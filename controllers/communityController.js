@@ -752,7 +752,7 @@ const addJoinedCommunityRequest = async (req, res, next) => {
           from: "Hello Helper<accounts@franciscoinoque.tech>",
           to: user.data().email,
           subject: "มีผู้ต้องการเข้าร่วมชุมชนความข่วยเหลือ",
-          html: `สวัสดี<br /><br />มีผู้ต้องการขอเข้าร่วมชุมชนความช่วยเหลือ <br /><br />สามารถเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
+          html: `สวัสดี<br /><br />มีผู้ต้องการขอเข้าร่วมชุมชนความช่วยเหลือ <br /><br />สามารถเช็คดูที่ได้ <a href="https://hello-helper-66225d.netlify.app/profile/user/community/${req.body.communityId}">ที่นี่</a>`,
         });
 
         res.status(200).send(joinedRequest.id);

@@ -237,10 +237,16 @@ const addOrder = async (req, res, next) => {
             return result.get();
           })
           .then(async (result) => {
+            res.status(200).send({
+              id: result.id,
+              ...result.data(),
+            });
             const user = await db
               .collection("users")
               .doc(req.body.providerUserId)
               .get();
+
+            // let testAccount = await nodemailer.createTestAccount();
 
             let authData = nodemailer.createTransport({
               host: "smtp.gmail.com",
@@ -249,20 +255,24 @@ const addOrder = async (req, res, next) => {
               auth: {
                 user: "srisawasdina@gmail.com",
                 pass: "na21122542",
+                // user: testAccount.user, // generated ethereal user
+                // pass: testAccount.pass,
               },
             });
 
-            await authData.sendMail({
-              from: "Hello Helper<accounts@franciscoinoque.tech>",
-              to: user.data().email,
-              subject: "เราพบว่าคุณมีออเดอร์รอการยืนยัน",
-              html: `สวัสดี<br /><br />เราพบว่าคุณมีออเดอร์รอการยืนยัน <br /><br />สามารถเช็คดูที่ได้ <a href="#">ที่นี่</a>`,
-            });
-
-            res.status(200).send({
-              id: result.id,
-              ...result.data(),
-            });
+            await authData
+              .sendMail({
+                from: "Hello Helper <hello-helper.no-reply@example.com>",
+                to: user.data().email,
+                subject: "เราพบว่าคุณมีออเดอร์รอการยืนยัน",
+                html: `สวัสดี<br /><br />เราพบว่าคุณมีออเดอร์รอการยืนยัน <br /><br />สามารถเช็คดูที่ได้ <a href="https://hello-helper-66225d.netlify.app/chat/${req.body.chatId}">ที่นี่</a>`,
+              })
+              .catch((error) => {
+                res.status(400).send(error.message);
+              });
+          })
+          .catch((error) => {
+            res.status(400).send(error.message);
           });
       })
       .catch((error) => {

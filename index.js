@@ -39,4 +39,4 @@ app.use("/image", uploadImageRoute.routes);
 //   console.log("App is listening on url http://localhost:", PORT)
 // );
 
-exports.api = functions.https.onRequest(app);
+exports.api = functions.region("asia-southeast1").https.onRequest(app);
