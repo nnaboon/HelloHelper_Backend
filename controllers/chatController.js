@@ -28,6 +28,17 @@ const getUserChatRooms = async (req, res, next) => {
     } else {
       await Promise.all(
         data.docs.map(async (doc) => {
+          const anotherUserId = doc
+            .data()
+            .users.filter((items) => items != req.params.userId);
+
+          const user = await db
+            .collection("users")
+            .doc(
+              doc.data().users.filter((items) => items != req.params.userId)[0]
+            )
+            .get();
+
           const chat = new Chat(
             doc.id,
             doc.data().users,
@@ -57,9 +68,23 @@ const getUserChatRooms = async (req, res, next) => {
               );
               messages.push(messageText);
             });
-            entities.push({ ...chat, messages: messages });
+            entities.push({
+              ...chat,
+              user: {
+                username: user.data().username,
+                imageUrl: user.data().imageUrl,
+              },
+              messages: messages,
+            });
           } else {
-            entities.push({ ...chat, messages: [] });
+            entities.push({
+              ...chat,
+              user: {
+                username: user.data().username,
+                imageUrl: user.data().imageUrl,
+              },
+              messages: [],
+            });
           }
         })
       );
