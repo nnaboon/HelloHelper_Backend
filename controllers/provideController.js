@@ -18,8 +18,6 @@ const getProvides = async (req, res, next) => {
   try {
     const data = await db
       .collection("provides")
-      .where("visibility", "==", 1)
-      .where("dataStatus", "==", 0)
       .orderBy("provideSum", "desc")
       .get();
 
@@ -35,7 +33,11 @@ const getProvides = async (req, res, next) => {
             .collection("users")
             .doc(doc.data().userId)
             .get();
-          if (!doc.data.communityId) {
+          if (
+            !doc.data().communityId &&
+            doc.data().visibility == 1 &&
+            doc.data().dataStatus == 0
+          ) {
             const provide = new Provide(
               id,
               doc.data().title,
@@ -50,7 +52,8 @@ const getProvides = async (req, res, next) => {
               doc.data().communityId,
               doc.data().category,
               doc.data().hashtag,
-              doc.data().visibility
+              doc.data().visibility,
+              doc.data().visitor
             );
 
             const requesterUserEntities = [];
@@ -110,8 +113,6 @@ const getTopTenProvides = async (req, res, next) => {
   try {
     const data = await db
       .collection("provides")
-      .where("visibility", "==", 1)
-      .where("dataStatus", "==", 0)
       .orderBy("visitor", "desc")
       .limit(10)
       .get();
@@ -128,7 +129,11 @@ const getTopTenProvides = async (req, res, next) => {
             .collection("users")
             .doc(doc.data().userId)
             .get();
-          if (!doc.data.communityId) {
+          if (
+            !doc.data().communityId &&
+            doc.data().visibility == 1 &&
+            doc.data().dataStatus == 0
+          ) {
             const provide = new Provide(
               id,
               doc.data().title,
@@ -143,7 +148,8 @@ const getTopTenProvides = async (req, res, next) => {
               doc.data().communityId,
               doc.data().category,
               doc.data().hashtag,
-              doc.data().visibility
+              doc.data().visibility,
+              doc.data().visitor
             );
 
             const requesterUserEntities = [];
@@ -232,7 +238,8 @@ const getMyProvide = async (req, res, next) => {
             doc.data().communityId,
             doc.data().category,
             doc.data().hashtag,
-            doc.data().visibility
+            doc.data().visibility,
+            doc.data().visitor
           );
 
           map[doc.data().category[0]] =
@@ -408,7 +415,8 @@ const searchProvide = async (req, res, next) => {
               doc.data().communityId,
               doc.data().category,
               doc.data().hashtag,
-              doc.data().visibility
+              doc.data().visibility,
+              doc.data().visitor
             );
 
             entities.push({

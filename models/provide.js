@@ -14,6 +14,7 @@ class Provide {
     category,
     hashtag,
     visibility,
+    visitor,
     requesterUserId,
     createdAt,
     createdBy,
@@ -37,6 +38,7 @@ class Provide {
     this.category = category;
     this.hashtag = hashtag;
     this.visibility = visibility;
+    this.visitor = visitor;
     this.requesterUserId = requesterUserId;
     this.createdAt = createdAt;
     this.createdBy = createdBy;
