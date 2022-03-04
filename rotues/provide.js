@@ -5,6 +5,7 @@ const {
   getProvides,
   getMyProvide,
   getProvide,
+  getTopTenProvides,
   getProvidesRanking,
   addProvide,
   updatedProvide,
@@ -14,6 +15,7 @@ const {
   uploadImage,
   getImage,
   updateProvideSum,
+  updateVisitProvide,
   searchProvide,
 } = require("../controllers/provideController");
 
@@ -28,6 +30,7 @@ const multer = Multer({
 });
 
 router.get("/", getProvides);
+router.get("/top", getTopTenProvides);
 router.get("/:id", getProvide);
 router.get("/user/:userId", getMyProvide);
 router.get("/:id/image", getImage);
@@ -39,6 +42,7 @@ router.post("/:provideId/requester/:userId", addRequesterUser);
 router.post("/upload", multer.single("img"), uploadImage);
 
 router.put("/:id", updatedProvide);
+router.put("/:id/visit", updateVisitProvide);
 router.put("/:id/disable", disableProvide);
 router.put("/:id/sum", updateProvideSum);
 
