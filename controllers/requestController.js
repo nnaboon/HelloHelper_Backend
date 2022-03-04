@@ -136,6 +136,15 @@ const getRequests = async (req, res, next) => {
 
 const getRequest = async (req, res, next) => {
   try {
+    await db
+      .collection("requests")
+      .doc(req.params.id)
+      .update({
+        visitor: admin.firestore.FieldValue.increment(1),
+        modifiedAt: admin.firestore.Timestamp.now(),
+        modifiedBy: req.body.userId,
+      });
+
     const data = await db.collection("requests").doc(req.params.id).get();
     const id = data.id;
     const entities = [];
@@ -356,6 +365,7 @@ const addRequest = async (req, res, next) => {
         db.collection("requests")
           .add({
             ...req.body,
+            visitor: 0,
             visibility: 1,
             createdAt: admin.firestore.Timestamp.now(),
             createdBy: req.body.userId,
