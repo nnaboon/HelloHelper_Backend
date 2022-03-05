@@ -29,10 +29,7 @@ const getProvides = async (req, res, next) => {
       await Promise.all(
         data.docs.map(async (doc) => {
           const id = doc.id;
-          const user = await db
-            .collection("users")
-            .doc(doc.data().userId)
-            .get();
+
           if (
             !doc.data().communityId &&
             doc.data().visibility == 1 &&
@@ -56,52 +53,27 @@ const getProvides = async (req, res, next) => {
               doc.data().visitor
             );
 
-            const requesterUserEntities = [];
-            const requesterUserId = await db
-              .collection("provides")
-              .doc(id)
-              .collection("requesterUserId")
-              .get();
-
-            requesterUserId.forEach(async (doc) => {
-              const requesterUser = new RequesterUserId(
-                doc.data().userId,
-                doc.data().status,
-                doc.data().createdAt
-                  ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
-                  : undefined,
-                doc.data().createdBy,
-                doc.data().modifiedAt
-                  ? new Date(
-                      doc.data().modifiedAt._seconds * 1000
-                    ).toUTCString()
-                  : undefined,
-                doc.data().modifiedBy,
-                doc.data().deletedAt
-                  ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
-                  : undefined,
-                doc.data().deletedBy,
-                doc.data().dataStatus
-              );
-              requesterUserEntities.push(requesterUser);
-            });
-
-            Object.assign(provide, {
-              requesterUserId: requesterUserEntities,
-              user: {
-                imageUrl: user.data().imageUrl,
-                recommend: user.data().recommend,
-                rank: user.data().rank,
-                username: user.data().username,
-                email: user.data().email,
-                rating: user.data().rating,
-              },
-            });
-
             entities.push(provide);
           }
         })
       );
+
+      await Promise.all(
+        entities.map(async (doc) => {
+          const user = await db.collection("users").doc(doc.userId).get();
+          Object.assign(doc, {
+            user: {
+              imageUrl: user.data().imageUrl,
+              recommend: user.data().recommend,
+              rank: user.data().rank,
+              username: user.data().username,
+              email: user.data().email,
+              rating: user.data().rating,
+            },
+          });
+        })
+      );
+
       res.status(200).send(entities);
     }
   } catch (err) {
@@ -125,10 +97,7 @@ const getTopTenProvides = async (req, res, next) => {
       await Promise.all(
         data.docs.map(async (doc) => {
           const id = doc.id;
-          const user = await db
-            .collection("users")
-            .doc(doc.data().userId)
-            .get();
+
           if (
             !doc.data().communityId &&
             doc.data().visibility == 1 &&
@@ -152,52 +121,27 @@ const getTopTenProvides = async (req, res, next) => {
               doc.data().visitor
             );
 
-            const requesterUserEntities = [];
-            const requesterUserId = await db
-              .collection("provides")
-              .doc(id)
-              .collection("requesterUserId")
-              .get();
-
-            requesterUserId.forEach(async (doc) => {
-              const requesterUser = new RequesterUserId(
-                doc.data().userId,
-                doc.data().status,
-                doc.data().createdAt
-                  ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
-                  : undefined,
-                doc.data().createdBy,
-                doc.data().modifiedAt
-                  ? new Date(
-                      doc.data().modifiedAt._seconds * 1000
-                    ).toUTCString()
-                  : undefined,
-                doc.data().modifiedBy,
-                doc.data().deletedAt
-                  ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
-                  : undefined,
-                doc.data().deletedBy,
-                doc.data().dataStatus
-              );
-              requesterUserEntities.push(requesterUser);
-            });
-
-            Object.assign(provide, {
-              requesterUserId: requesterUserEntities,
-              user: {
-                imageUrl: user.data().imageUrl,
-                recommend: user.data().recommend,
-                rank: user.data().rank,
-                username: user.data().username,
-                email: user.data().email,
-                rating: user.data().rating,
-              },
-            });
-
             entities.push(provide);
           }
         })
       );
+
+      await Promise.all(
+        entities.map(async (doc) => {
+          const user = await db.collection("users").doc(doc.userId).get();
+          Object.assign(doc, {
+            user: {
+              imageUrl: user.data().imageUrl,
+              recommend: user.data().recommend,
+              rank: user.data().rank,
+              username: user.data().username,
+              email: user.data().email,
+              rating: user.data().rating,
+            },
+          });
+        })
+      );
+
       res.status(200).send(entities);
     }
   } catch (err) {
