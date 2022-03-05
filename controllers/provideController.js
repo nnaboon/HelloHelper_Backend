@@ -493,7 +493,7 @@ const updatedProvide = async (req, res, next) => {
         const requesterUserEntities = [];
 
         if (result.empty || result.data().dataStatus == 1) {
-          res.status(404).send("No user found");
+          res.status(404).send("No provide found");
         } else {
           requesterUserId.forEach(async (doc) => {
             const requesterUser = new RequesterUserId(

@@ -162,7 +162,7 @@ const getRequest = async (req, res, next) => {
       .get();
 
     if (data.empty || data.data().dataStatus == 1) {
-      res.status(404).send("Data not found");
+      res.status(404).send("No request found");
     } else {
       entities.push({ requestId: id, ...data.data() });
       await Promise.all(
@@ -596,7 +596,7 @@ const updatedRequest = async (req, res, next) => {
           .get();
 
         if (data.empty || data.data().dataStatus == 1) {
-          res.status(404).send("Data not found");
+          res.status(404).send("No request found");
         } else {
           entities.push({ requestId: id, ...data.data() });
           await Promise.all(
