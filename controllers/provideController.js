@@ -423,7 +423,7 @@ const addProvide = async (req, res, next) => {
               .doc(result.data().userId)
               .get();
 
-            return res.status(200).send({
+            res.status(200).send({
               id: result.id,
               ...result.data(),
               user: {
@@ -434,6 +434,39 @@ const addProvide = async (req, res, next) => {
                 email: user.data().email,
                 rating: user.data().rating,
               },
+            });
+
+            return result;
+          })
+          .then(async (result) => {
+            console.log(result.id);
+            const follower = await db
+              .collection("users")
+              .doc(req.body.userId)
+              .collection("followers")
+              .get();
+
+            follower.forEach(async (doc) => {
+              const user = await db
+                .collection("users")
+                .doc(doc.data().userId)
+                .get();
+
+              let authData = nodemailer.createTransport({
+                host: "smtp.gmail.com",
+                port: 465,
+                secure: true,
+                auth: {
+                  user: "srisawasdina@gmail.com",
+                  pass: "na21122542",
+                },
+              });
+              authData.sendMail({
+                from: "Hello Helper<accounts@franciscoinoque.tech>",
+                to: user.data().email,
+                subject: "มีการให้ความช่วยเหลือใหม่",
+                html: `สวัสดี<br /><br />เราพบว่าผู้ใช้งานที่คุณติดตามได้มีการแจ้งโพสต์ให้บริการความช่วยเหลือใหม่<br /><br />สามารถเช็คดูที่ได้ <a href="https://hello-helper-66225d.netlify.app/provide/${req.body.title}/${result.id}">ที่นี่</a>`,
+              });
             });
           });
       })
