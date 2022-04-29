@@ -29,7 +29,7 @@ const getCommunities = async (req, res, next) => {
         data.docs.map(async (doc) => {
           if (doc.data().dataStatus === 0) {
             const id = doc.id;
-            const user = new Community(
+            const community = new Community(
               id,
               doc.data().communityCode,
               doc.data().communityName,
@@ -40,58 +40,60 @@ const getCommunities = async (req, res, next) => {
               doc.data().dataStatus
             );
 
-            const memberEntities = [];
-            const joinedRequestEntities = [];
+            entities.push(community);
 
-            const members = await db
-              .collection("communities")
-              .doc(id)
-              .collection("members")
-              .where("status", "==", 0)
-              .get();
+            // const memberEntities = [];
+            // const joinedRequestEntities = [];
 
-            if (members.empty) {
-              Object.assign(user, { member: memberEntities });
-            } else {
-              members.forEach((doc) => {
-                const member = new Member(
-                  doc.id,
-                  doc.data().status,
-                  doc.data().role,
-                  doc.data().requestSum,
-                  doc.data().provideSum,
-                  doc.data().joinedAt,
-                  doc.data().leavedAt
-                );
-                memberEntities.push(member);
-              });
-              Object.assign(user, { member: memberEntities });
-            }
+            // const members = await db
+            //   .collection("communities")
+            //   .doc(id)
+            //   .collection("members")
+            //   .where("status", "==", 0)
+            //   .get();
 
-            const joinedRequest = await db
-              .collection("communities")
-              .doc(id)
-              .collection("joinedRequestUserId")
-              .get();
+            // if (members.empty) {
+            //   Object.assign(user, { member: memberEntities });
+            // } else {
+            //   members.forEach((doc) => {
+            //     const member = new Member(
+            //       doc.id,
+            //       doc.data().status,
+            //       doc.data().role,
+            //       doc.data().requestSum,
+            //       doc.data().provideSum,
+            //       doc.data().joinedAt,
+            //       doc.data().leavedAt
+            //     );
+            //     memberEntities.push(member);
+            //   });
+            //   Object.assign(user, { member: memberEntities });
+            // }
 
-            if (joinedRequest.empty) {
-              Object.assign(user, {
-                joinedRequestUserId: joinedRequestEntities,
-              });
-            } else {
-              joinedRequest.forEach((doc) => {
-                const joinedRequest = new JoinedRequest(
-                  doc.id,
-                  doc.data().userId,
-                  doc.data().status
-                );
-                joinedRequestEntities.push(joinedRequest);
-              });
-              Object.assign(user, {
-                joinedRequestUserId: joinedRequestEntities,
-              });
-            }
-            entities.push(user);
+            // const joinedRequest = await db
+            //   .collection("communities")
+            //   .doc(id)
+            //   .collection("joinedRequestUserId")
+            //   .get();
+
+            // if (joinedRequest.empty) {
+            //   Object.assign(user, {
+            //     joinedRequestUserId: joinedRequestEntities,
+            //   });
+            // } else {
+            //   joinedRequest.forEach((doc) => {
+            //     const joinedRequest = new JoinedRequest(
+            //       doc.id,
+            //       doc.data().userId,
+            //       doc.data().status
+            //     );
+            //     joinedRequestEntities.push(joinedRequest);
+            //   });
+            //   Object.assign(user, {
+            //     joinedRequestUserId: joinedRequestEntities,
+            //   });
+            // }
+            // entities.push(community);
           }
         })
       );
@@ -725,37 +727,42 @@ const addJoinedCommunityRequest = async (req, res, next) => {
       .verifyIdToken(idToken)
       .then(async (decodedIdToken) => {
         const data = db.collection("communities");
-        const user = await db.collection("users").doc(decodedIdToken.uid).get();
 
-        const joinedRequest = await data
+        return await data
           .doc(req.body.communityId)
           .collection("joinedRequestUserId")
           .add({
             userId: req.body.userId,
             status: "pending",
             createdAt: admin.firestore.Timestamp.now(),
-            createdBy: decodedIdToken,
+            createdBy: decodedIdToken.uid,
             dataStatus: 0,
+          })
+          .then((result) => {
+            return res.status(200).send(result.id);
+          })
+          .then(async (result) => {
+            const user = await db
+              .collection("users")
+              .doc(decodedIdToken.uid)
+              .get();
+            let authData = nodemailer.createTransport({
+              host: "smtp.gmail.com",
+              port: 465,
+              secure: true,
+              auth: {
+                // user: testAccount.user,
+                // pass: testAccount.pass,
+              },
+            });
+
+            await authData.sendMail({
+              from: "Hello Helper<accounts@franciscoinoque.tech>",
+              to: user.data().email,
+              subject: "มีผู้ต้องการเข้าร่วมชุมชนความข่วยเหลือ",
+              html: `สวัสดี<br /><br />มีผู้ต้องการขอเข้าร่วมชุมชนความช่วยเหลือ <br /><br />สามารถเช็คดูที่ได้ <a href="https://hello-helper-66225d.netlify.app/profile/user/community/${req.body.communityId}">ที่นี่</a>`,
+            });
           });
-
-        let authData = nodemailer.createTransport({
-          host: "smtp.gmail.com",
-          port: 465,
-          secure: true,
-          auth: {
-            user: "srisawasdina@gmail.com",
-            pass: "na21122542",
-          },
-        });
-
-        await authData.sendMail({
-          from: "Hello Helper<accounts@franciscoinoque.tech>",
-          to: user.data().email,
-          subject: "มีผู้ต้องการเข้าร่วมชุมชนความข่วยเหลือ",
-          html: `สวัสดี<br /><br />มีผู้ต้องการขอเข้าร่วมชุมชนความช่วยเหลือ <br /><br />สามารถเช็คดูที่ได้ <a href="https://hello-helper-66225d.netlify.app/profile/user/community/${req.body.communityId}">ที่นี่</a>`,
-        });
-
-        res.status(200).send(joinedRequest.id);
       })
       .catch((error) => {
         console.error("Error while verifying Firebase ID token:", error);
@@ -920,8 +927,8 @@ const deleteCommunity = async (req, res, next) => {
                   port: 465,
                   secure: true,
                   auth: {
-                    user: "srisawasdina@gmail.com",
-                    pass: "na21122542",
+                    // user: testAccount.user,
+                    // pass: testAccount.pass,
                   },
                 });
 
@@ -944,62 +951,6 @@ const deleteCommunity = async (req, res, next) => {
           .catch((error) => {
             res.status(400).send(error.message);
           });
-
-        // await document
-        //   .update({
-        //     deletedAt: admin.firestore.Timestamp.now(),
-        //     deletedBy: decodedIdToken.uid,
-        //     dataStatus: 1,
-        //   })
-        //   .then(async () => {
-        //     return await db
-        //       .collection("communities")
-        //       .doc(req.params.id)
-        //       .collection("members")
-        //       .get();
-        //   })
-        //   .then(async (result) => {
-        //     res.status(200).send("deleted community successfully");
-        //     await Promise.all(
-        //       result.docs.map(async (doc) => {
-        //         const user = await db
-        //           .collection("users")
-        //           .doc(doc.data().userId)
-        //           .get();
-
-        //         await db
-        //           .collection("users")
-        //           .doc(doc.data().userId)
-        //           .update({
-        //             communityId: user
-        //               .data()
-        //               .communityId.filter((items) => items != req.params.id),
-        //           });
-
-        //         let authData = nodemailer.createTransport({
-        //           host: "smtp.gmail.com",
-        //           port: 465,
-        //           secure: true,
-        //           auth: {
-        //             user: "srisawasdina@gmail.com",
-        //             pass: "na21122542",
-        //           },
-        //         });
-
-        //         await authData.sendMail({
-        //           from: "Hello Helper<accounts@franciscoinoque.tech>",
-        //           to: user.data().email,
-        //           subject: "ชุมชนความช่วยเหลือถูกลบ",
-        //           html: `สวัสดี<br /><br />ทางผู้นำชุมชนจำเป็นต้องแจ้งให้กับทางท่านสมาชิกในชุมชนทราบว่า มีการลบชุมชนความช่วยเหลือชื่อ ${
-        //             communityData.data().communityName
-        //           }</a>`,
-        //         });
-        //       })
-        //     );
-        //   })
-        //   .catch((error) => {
-        //     res.status(400).send(error.message);
-        //   });
       })
       .catch((error) => {
         console.error("Error while verifying Firebase ID token:", error);
@@ -1011,34 +962,6 @@ const deleteCommunity = async (req, res, next) => {
 };
 
 const uploadImage = async (req, res, next) => {
-  // const folder = "communities";
-  // const fileName = `${folder}/${Date.now()}`;
-  // const fileUpload = bucket.file(fileName);
-  // const blobStream = fileUpload.createWriteStream({
-  //   metadata: {
-  //     contentType: "image/jpeg",
-  //   },
-  // });
-
-  // blobStream.on("error", (err) => {
-  //   res.status(405).json(err);
-  // });
-
-  // blobStream.on("finish", () => {
-  //   // console.log(res);
-  //   bucket
-  //     .file(fileName)
-  //     .getSignedUrl({
-  //       action: "read",
-  //       expires: "03-09-2491",
-  //     })
-  //     .then((signedUrls) => {
-  //       res.status(200).send(signedUrls[0]);
-  //     });
-  // });
-
-  // blobStream.end(req.file.buffer);
-
   const busboy = new BusBoy({ headers: req.headers });
 
   let imageFileName = {};
@@ -1130,10 +1053,6 @@ const getImage = async (req, res, next) => {
 const getCommunityMember = async (req, res, next) => {
   try {
     const entities = [];
-    // const data = await db
-    //   .collection("users")
-    //   .where("communityId", "array-contains", req.params.id)
-    //   .get();
 
     const data = await db
       .collection("communities")
@@ -1160,39 +1079,7 @@ const getCommunityMember = async (req, res, next) => {
             .collection("users")
             .doc(doc.data().userId)
             .get();
-          // console.log(community);
-
-          // const user = new User(
-          //   doc.id,
-          //   doc.data().loginType,
-          //   doc.data().username,
-          //   doc.data().email,
-          //   doc.data().verifiedEmailStatus,
-          //   doc.data().location,
-          //   doc.data().imageUrl,
-          //   doc.data().address,
-          //   doc.data().phoneNumber,
-          //   doc.data().recommend,
-          //   doc.data().rank,
-          //   doc.data().rating,
-          //   doc.data().communityId,
-          //   doc.data().category,
-          //   doc.data().requestSum,
-          //   doc.data().provideSum,
-          //   doc.data().followerUserId,
-          //   doc.data().followingUserId,
-          //   doc.data().provideId,
-          //   doc.data().requestId
-          // );
-
           entities.push(doc.id, doc.data(), ...member.data());
-          // entities.push(
-          //   Object.assign(user, {
-          //     memberId: community.docs[0].id,
-          //     role: community.docs[0].data().role,
-          //   })
-          //   // Object.assign(user, { role: community.})
-          // );
         })
       );
 

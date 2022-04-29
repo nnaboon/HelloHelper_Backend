@@ -17,6 +17,94 @@ const BusBoy = require("busboy");
 const path = require("path");
 const os = require("os");
 
+const getSuggestRequests = async (req, res, next) => {
+  try {
+    const entities = [];
+
+    const data = await db
+      .collection("requests")
+      .where("dataStatus", "==", 0)
+      .where("visibility", "==", 1)
+      .limit(15)
+      .get();
+
+    if (data.empty) {
+      res.status(404).send("No request found");
+    } else {
+      await Promise.all(
+        data.docs.map(async (doc) => {
+          const user = await db
+            .collection("users")
+            .doc(doc.data().userId)
+            .get();
+          const id = doc.id;
+          const request = new Request(
+            id,
+            doc.data().title,
+            doc.data().location,
+            doc.data().imageUrl,
+            doc.data().description,
+            doc.data().price,
+            doc.data().serviceCharge,
+            doc.data().number,
+            doc.data().payment,
+            doc.data().userId,
+            doc.data().communityId,
+            doc.data().category,
+            doc.data().hashtag,
+            doc.data().visibility
+          );
+
+          const providedUserEntities = [];
+
+          const providedUserId = await db
+            .collection("requests")
+            .doc(id)
+            .collection("providedUserId")
+            .get();
+
+          providedUserId.forEach((doc) => {
+            const providedUser = new ProvidedUserId(
+              doc.id,
+              doc.data().userId,
+              doc.data().status,
+              doc.data().createdAt
+                ? new Date(doc.data().createdAt._seconds * 1000).toUTCString()
+                : undefined,
+              doc.data().createdBy,
+              doc.data().modifiedAt
+                ? new Date(doc.data().modifiedAt._seconds * 1000).toUTCString()
+                : undefined,
+              doc.data().modifiedBy,
+              doc.data().deletedAt
+                ? new Date(doc.data().deletedAt._seconds * 1000).toUTCString()
+                : undefined,
+              doc.data().deletedBy,
+              doc.data().dataStatus
+            );
+            providedUserEntities.push(providedUser);
+          });
+          Object.assign(request, {
+            providedUserId: providedUserEntities,
+            user: {
+              imageUrl: user.data().imageUrl,
+              recommend: user.data().recommend,
+              rank: user.data().rank,
+              username: user.data().username,
+              email: user.data().email,
+              rating: user.data().rating,
+            },
+          });
+          entities.push(request);
+        })
+      );
+      res.status(200).send(entities);
+    }
+  } catch (err) {
+    res.status(400).send(err.message);
+  }
+};
+
 const getRequests = async (req, res, next) => {
   try {
     const entities = [];
@@ -95,6 +183,7 @@ const getRequests = async (req, res, next) => {
 
           providedUserId.forEach((doc) => {
             const providedUser = new ProvidedUserId(
+              doc.id,
               doc.data().userId,
               doc.data().status,
               doc.data().createdAt
@@ -202,6 +291,7 @@ const getRequest = async (req, res, next) => {
 
       providedUserId.forEach((doc) => {
         const providedUser = new ProvidedUserId(
+          doc.id,
           doc.data().userId,
           doc.data().status,
           doc.data().createdAt
@@ -238,6 +328,7 @@ const getUserRequest = async (req, res, next) => {
       .collection("requests")
       .where("userId", "==", req.params.userId)
       .where("dataStatus", "==", 0)
+      .orderBy("createdAt")
       .get();
 
     if (data.empty) {
@@ -308,6 +399,7 @@ const getUserRequest = async (req, res, next) => {
 
             providedUserId.forEach((doc) => {
               const providedUser = new ProvidedUserId(
+                doc.id,
                 doc.data().userId,
                 doc.data().status,
                 doc.data().createdAt
@@ -390,8 +482,8 @@ const addRequest = async (req, res, next) => {
                     port: 465,
                     secure: true,
                     auth: {
-                      user: "srisawasdina@gmail.com",
-                      pass: "na21122542",
+                      // user: testAccount.user,
+                      // pass: testAccount.pass,
                     },
                   });
                   authData.sendMail({
@@ -408,8 +500,8 @@ const addRequest = async (req, res, next) => {
                     port: 465,
                     secure: true,
                     auth: {
-                      user: "srisawasdina@gmail.com",
-                      pass: "na21122542",
+                      // user: testAccount.user,
+                      // pass: testAccount.pass,
                     },
                   });
                   authData.sendMail({
@@ -478,7 +570,8 @@ const addRequesterUserId = async (req, res, next) => {
           createdBy: req.params.userId,
           dataStatus: 0,
         })
-        .then(async () => {
+        .then(async (result) => {
+          res.status(200).send(result.id);
           return await db
             .collection("requests")
             .doc(req.params.requestId)
@@ -491,7 +584,7 @@ const addRequesterUserId = async (req, res, next) => {
           result.docs.forEach((doc) => {
             entities.push({ requestId: doc.id, ...doc.data() });
           });
-          res.status(200).send(entities);
+          // res.status(200).send(entities);
           const user = await db
             .collection("users")
             .doc(result.data().userId)
@@ -501,8 +594,8 @@ const addRequesterUserId = async (req, res, next) => {
             port: 465,
             secure: true,
             auth: {
-              user: "srisawasdina@gmail.com",
-              pass: "na21122542",
+              // user: testAccount.user,
+              // pass: testAccount.pass,
             },
           });
           await authData.sendMail({
@@ -638,6 +731,7 @@ const updatedRequest = async (req, res, next) => {
 
           providedUserId.forEach((doc) => {
             const providedUser = new ProvidedUserId(
+              doc.id,
               doc.data().userId,
               doc.data().status,
               doc.data().createdAt
@@ -835,6 +929,7 @@ const deleteProvideUserId = async (req, res, next) => {
 module.exports = {
   getRequests,
   getRequest,
+  getSuggestRequests,
   getUserRequest,
   addRequest,
   addRequesterUserId,

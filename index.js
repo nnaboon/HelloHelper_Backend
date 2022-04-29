@@ -20,7 +20,7 @@ const uploadImageRoute = require("./rotues/uploadImage");
 
 const app = express();
 
-app.use(cors({ origin: true }));
+app.use(cors());
 
 const PORT = 5000;
 

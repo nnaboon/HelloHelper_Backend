@@ -10,6 +10,7 @@ const {
   updateProvideSum,
   updateRequestSum,
   deleteConfirmOrder,
+  requesterRating,
 } = require("../controllers/orderController");
 const express = require("express");
 
@@ -27,6 +28,7 @@ router.put("/:id/status", updateOrderStatus);
 router.put("/:id/disable", disableOrder);
 router.put("/:id/sum/provide", updateProvideSum);
 router.put("/:id/sum/request", updateRequestSum);
+router.put("/:id/requester", requesterRating);
 
 router.delete("/confirm/:id", deleteConfirmOrder);
 

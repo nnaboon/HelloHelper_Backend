@@ -19,6 +19,75 @@ const getProvides = async (req, res, next) => {
     const data = await db
       .collection("provides")
       .orderBy("provideSum", "desc")
+      // .limit(10)
+      .get();
+
+    const entities = [];
+
+    if (data.empty) {
+      res.status(404).send("No provide found");
+    } else {
+      await Promise.all(
+        data.docs.map(async (doc) => {
+          const id = doc.id;
+
+          if (
+            !doc.data().communityId &&
+            doc.data().visibility == 1 &&
+            doc.data().dataStatus == 0
+          ) {
+            const provide = new Provide(
+              id,
+              doc.data().title,
+              doc.data().location,
+              doc.data().imageUrl,
+              doc.data().description,
+              doc.data().rating,
+              doc.data().provideSum,
+              doc.data().serviceCharge,
+              doc.data().payment,
+              doc.data().userId,
+              doc.data().communityId,
+              doc.data().category,
+              doc.data().hashtag,
+              doc.data().visibility,
+              doc.data().visitor
+            );
+
+            entities.push(provide);
+          }
+        })
+      );
+
+      await Promise.all(
+        entities.map(async (doc) => {
+          const user = await db.collection("users").doc(doc.userId).get();
+          Object.assign(doc, {
+            user: {
+              imageUrl: user.data().imageUrl,
+              recommend: user.data().recommend,
+              rank: user.data().rank,
+              username: user.data().username,
+              email: user.data().email,
+              rating: user.data().rating,
+            },
+          });
+        })
+      );
+
+      res.status(200).send(entities);
+    }
+  } catch (err) {
+    res.status(400).send(err.message);
+  }
+};
+
+const getPopularProvides = async (req, res, next) => {
+  try {
+    const data = await db
+      .collection("provides")
+      .orderBy("provideSum", "desc")
+      .limit(10)
       .get();
 
     const entities = [];
@@ -457,8 +526,8 @@ const addProvide = async (req, res, next) => {
                 port: 465,
                 secure: true,
                 auth: {
-                  user: "srisawasdina@gmail.com",
-                  pass: "na21122542",
+                  // user: testAccount.user,
+                  // pass: testAccount.pass,
                 },
               });
               authData.sendMail({
@@ -734,6 +803,7 @@ const updateProvideSum = async (req, res, next) => {
 
 module.exports = {
   getProvides,
+  getPopularProvides,
   getTopTenProvides,
   getProvide,
   getMyProvide,

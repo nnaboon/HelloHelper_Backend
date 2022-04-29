@@ -28,10 +28,6 @@ const getUserChatRooms = async (req, res, next) => {
     } else {
       await Promise.all(
         data.docs.map(async (doc) => {
-          const anotherUserId = doc
-            .data()
-            .users.filter((items) => items != req.params.userId);
-
           const user = await db
             .collection("users")
             .doc(

@@ -5,6 +5,7 @@ const {
   getProvides,
   getMyProvide,
   getProvide,
+  getPopularProvides,
   getTopTenProvides,
   getProvidesRanking,
   addProvide,
@@ -30,6 +31,7 @@ const multer = Multer({
 });
 
 router.get("/", getProvides);
+router.get("/popular", getPopularProvides);
 router.get("/top", getTopTenProvides);
 router.get("/:id", getProvide);
 router.get("/user/:userId", getMyProvide);

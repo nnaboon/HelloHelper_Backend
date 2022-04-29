@@ -94,6 +94,7 @@ const addUsers = async (req, res, next) => {
         recommend: 0,
         rank: "classic",
         rating: 0,
+        requestRating: 0,
         category: req.body.category,
         requestSum: 0,
         provideSum: 0,
@@ -270,8 +271,8 @@ const createUser = async (req, res, next) => {
     port: 465,
     secure: true,
     auth: {
-      user: "srisawasdina@gmail.com",
-      pass: "na21122542",
+      // user: testAccount.user,
+      // pass: testAccount.pass,
     },
   });
 
@@ -439,8 +440,8 @@ const sendVerificationEmail = async (req, res, next) => {
       port: 465,
       secure: true,
       auth: {
-        user: "srisawasdina@gmail.com",
-        pass: "na21122542",
+        // user: testAccount.user,
+        // pass: testAccount.pass,
       },
     });
     admin

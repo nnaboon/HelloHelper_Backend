@@ -75,6 +75,7 @@ class RequesterUserId {
 
 class ProvidedUserId {
   constructor(
+    id,
     userId,
     status,
     createdAt,
@@ -85,6 +86,7 @@ class ProvidedUserId {
     deletedBy,
     dataStatus
   ) {
+    this.id = id;
     this.userId = userId;
     this.status = status;
     this.createdAt = createdAt;

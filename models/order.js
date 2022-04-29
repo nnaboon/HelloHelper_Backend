@@ -11,6 +11,7 @@ class Order {
     price,
     serviceCharge,
     rating,
+    requesterRating,
     receiver,
     requesterUserId,
     providerUserId,
@@ -35,6 +36,7 @@ class Order {
     this.price = price;
     this.serviceCharge = serviceCharge;
     this.rating = rating;
+    this.requesterRating = requesterRating;
     this.receiver = receiver;
     this.requesterUserId = requesterUserId;
     this.providerUserId = providerUserId;

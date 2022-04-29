@@ -15,6 +15,7 @@ const {
   deleteProvideUserId,
   uploadImage,
   getImage,
+  getSuggestRequests,
 } = require("../controllers/requestController");
 
 const express = require("express");
@@ -31,6 +32,7 @@ const multer = Multer({
 router.get("/", getRequests);
 router.get("/:id", getRequest);
 router.get("/:id/image", getImage);
+router.get("/top/suggest", getSuggestRequests);
 router.get("/user/:userId", getUserRequest);
 
 router.post("/", addRequest);

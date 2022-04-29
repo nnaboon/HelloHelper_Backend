@@ -25,6 +25,7 @@ const getOrders = async (req, res, next) => {
           doc.data().price,
           doc.data().serviceCharge,
           doc.data().rating,
+          doc.data().requesterRating,
           doc.data().receiver,
           doc.data().requesterUserId,
           doc.data().providerUserId,
@@ -90,6 +91,7 @@ const getWaitForConfirmOrders = async (req, res, next) => {
           doc.data().price,
           doc.data().serviceCharge,
           doc.data().rating,
+          doc.data().requesterRating,
           doc.data().receiver,
           doc.data().requesterUserId,
           doc.data().providerUserId,
@@ -145,6 +147,7 @@ const getMyRequestOrders = async (req, res, next) => {
             doc.data().price,
             doc.data().serviceCharge,
             doc.data().rating,
+            doc.data().requesterRating,
             doc.data().receiver,
             doc.data().requesterUserId,
             doc.data().providerUserId,
@@ -187,6 +190,7 @@ const getMyProvideOrders = async (req, res, next) => {
             doc.data().price,
             doc.data().serviceCharge,
             doc.data().rating,
+            doc.data().requesterRating,
             doc.data().receiver,
             doc.data().requesterUserId,
             doc.data().providerUserId,
@@ -229,6 +233,7 @@ const addOrder = async (req, res, next) => {
           .add({
             ...req.body,
             status: "waiting",
+            requesterRating: 0,
             createdAt: admin.firestore.Timestamp.now(),
             createdBy: req.body.requesterUserId,
             dataStatus: 0,
@@ -253,9 +258,7 @@ const addOrder = async (req, res, next) => {
               port: 465,
               secure: true,
               auth: {
-                user: "srisawasdina@gmail.com",
-                pass: "na21122542",
-                // user: testAccount.user, // generated ethereal user
+                // user: testAccount.user,
                 // pass: testAccount.pass,
               },
             });
@@ -413,7 +416,12 @@ const updateProvideSum = async (req, res, next) => {
               (req.body.rating - data.data().rating) / data.data().provideSum,
           });
 
-        if (data.data().rank >= 3 && data.data().rating >= 4) {
+        if (
+          (data.data().rank === "gold" ||
+            data.data().rank === "diamond" ||
+            data.data().rank === "platinum") &&
+          data.data().rating >= 4
+        ) {
           await db.collection("users").doc(req.body.providerUserId).update({
             recommend: 1,
           });
@@ -460,8 +468,6 @@ const updateProvideSum = async (req, res, next) => {
       .collection("users")
       .doc(req.body.requesterUserId)
       .update({
-        // requestSum: requestSumPrev.data().requestSum + 1,
-
         requestSum: admin.firestore.FieldValue.increment(1),
       });
     res.status(200).send("provideSum updated successfully");
@@ -514,7 +520,12 @@ const updateRequestSum = async (req, res, next) => {
               (req.body.rating - data.data().rating) / data.data().provideSum,
           });
 
-        if (data.data().rank >= 3 && data.data().rating >= 4) {
+        if (
+          (data.data().rank === "gold" ||
+            data.data().rank === "diamond" ||
+            data.data().rank === "platinum") &&
+          data.data().rating >= 4
+        ) {
           await db.collection("users").doc(req.body.providerUserId).update({
             recommend: 1,
           });
@@ -562,6 +573,82 @@ const updateRequestSum = async (req, res, next) => {
   }
 };
 
+const requesterRating = async (req, res, next) => {
+  try {
+    await db.collection("orders").doc(req.params.id).update({
+      requesterRating: req.body.rating,
+      modifiedAt: admin.firestore.Timestamp.now(),
+      modifiedBy: req.body.requesterUserId,
+    });
+
+    const data = await db
+      .collection("users")
+      .doc(req.body.requesterUserId)
+      .get();
+
+    await db
+      .collection("users")
+      .doc(req.body.requesterUserId)
+      .update({
+        requestRating:
+          data.data().requestRating +
+          (req.body.rating - data.data().requestRating) /
+            data.data().requestSum,
+      });
+
+    if (
+      (data.data().rank === "gold" ||
+        data.data().rank === "diamond" ||
+        data.data().rank === "platinum") &&
+      data.data().rating >= 4
+    ) {
+      await db.collection("users").doc(req.body.providerUserId).update({
+        recommend: 1,
+      });
+    }
+
+    if (data.data().rating >= 4) {
+      switch (true) {
+        case data.data().provideSum > 0 && data.data().provideSum < 50:
+          await db
+            .collection("users")
+            .doc(req.body.providerUserId)
+            .update({ rank: "classic" });
+          break;
+        case data.data().provideSum >= 50 && data.data().provideSum < 100:
+          await db
+            .collection("users")
+            .doc(req.body.providerUserId)
+            .update({ rank: "silver" });
+          break;
+        case data.data().provideSum >= 100 && data.data().provideSum < 200:
+          await db
+            .collection("users")
+            .doc(req.body.providerUserId)
+            .update({ rank: "gold" });
+          break;
+        case data.data.provideSum >= 400 && data.data().rating >= 4.5:
+          await db
+            .collection("users")
+            .doc(req.body.providerUserId)
+            .update({ rank: "diamond" });
+          break;
+
+        case data.data.provideSum >= 500 && data.data().rating >= 4.5:
+          await db
+            .collection("users")
+            .doc(req.body.providerUserId)
+            .update({ rank: "platinum" });
+          break;
+      }
+    }
+
+    res.status(200).send("requester rating updated successfully");
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
 module.exports = {
   getOrders,
   getOrder,
@@ -574,4 +661,5 @@ module.exports = {
   deleteConfirmOrder,
   updateRequestSum,
   updateProvideSum,
+  requesterRating,
 };
